@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #0f172a; color: #e2e8f0; height: 100%; }
+
+/* Floating emoji reactions */
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { transform: translateY(-10px) scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(-220px) scale(1.1); opacity: 0; }
+}

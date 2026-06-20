@@ -1,0 +1,35 @@
+{
+  "name": "@teleconf/voicecall-sdk",
+  "version": "0.1.0",
+  "description": "Embed Teleconference voice calls into any Next.js / React app",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": ["webrtc", "voice-call", "mediasoup", "sdk", "react", "nextjs"],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "dependencies": {
+    "mediasoup-client": "^3.7.18",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.3"
+  }
+}
