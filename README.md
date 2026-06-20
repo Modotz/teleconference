@@ -22,10 +22,16 @@ A multi-party teleconference application using:
 - **Layout settings**: grid, spotlight, sidebar; pin participant; mirror self; toggle self-view & names
 - **Raise hand** with bouncing badge on tile + dedicated control button
 - **Active speaker detection** (server-side AudioLevelObserver) — green ring on speaking tile, auto-spotlights speaker if no pin
-- **Virtual background**: blur or replace with image, via MediaPipe SelfieSegmentation running locally in browser
+- **Virtual background**: blur, image presets, or **upload your own**, via MediaPipe SelfieSegmentation running locally in browser (GPU on desktop, CPU fallback on mobile)
+- **Pre-join screen + Lobby/waiting room**: choose name/mic/camera/speaker before joining; non-hosts wait until a moderator admits them. Host gets a **popup + sound** and can **Admit / Deny / Admit all** (even with the People panel closed)
+- **Participants panel** with **host moderation**: mute/unmute, turn camera off, **kick**, **mute all**, promote/demote **co-host**, and **lock meeting** (no new joins)
+- **Rename** yourself anytime (lobby or in-meeting); **mic/camera indicators** and **camera-off avatar** on every tile
+- **Emoji reactions** (floating), **copy meeting link**, **device selection** (mic / camera / speaker)
+- **Reconnection handling**: drops show a "Reconnecting…" overlay and auto-rejoin (skipping lobby) when the network returns; **host Leave ends the meeting for everyone**
+- **Network quality indicator** (signal bars per tile) + **fullscreen / picture-in-picture** per tile
 - JWT auth, per-user room ownership, participant history
 - HTTPS dev mode for LAN/phone testing
-- Responsive UI: collapsible chat, icon controls, mobile-friendly
+- Responsive UI: collapsible chat/people panels, icon controls, mobile "More" menu
 
 ## Architecture
 
@@ -405,6 +411,69 @@ emits an `activeSpeaker` socket event with that peer's id. Effects on the UI:
 Screen-share audio is *not* registered with the observer — only the camera
 mic, so a video playing on someone's shared tab doesn't steal focus.
 
+## Pre-join, lobby & moderation
+
+### Pre-join screen
+Everyone first lands on a **"Ready to join?"** screen with a live preview where
+they can set their **display name**, toggle **mic/camera**, and pick
+**input/output devices**. The **host (room owner) skips this and the lobby** and
+enters directly.
+
+### Lobby / waiting room
+Non-host participants click **Join** → they wait until a moderator admits them.
+
+- The host/co-host sees a **popup (top-right) + a "ding" sound** when someone is
+  waiting, even if the People panel is closed.
+- Admit one (**Admit**), reject (**Deny**), or **Admit all** at once.
+- Admitted users are remembered (by user id), so a **reconnect/reload skips the
+  lobby**. Kicked users are removed from that list and must be re-admitted.
+
+### Host / co-host controls (People panel)
+Open the **People** button. Moderators (host + co-hosts) can:
+
+| Action | Who |
+|--------|-----|
+| Mute / unmute a participant | host, co-host |
+| Turn a participant's camera off/on | host, co-host |
+| **Mute all** | host, co-host |
+| **Kick** a participant | host, co-host |
+| Admit / Deny / Admit all (lobby) | host, co-host |
+| Promote / demote **co-host** | host only |
+| **Lock meeting** (block new joins) | host only |
+| **End meeting for everyone** (host's *Leave*) | host only |
+
+Roles survive reconnects: the host is re-derived from room ownership, and
+co-host is remembered by user id. A locked room rejects newcomers but still lets
+already-admitted users reconnect.
+
+### Reactions
+The **React** button (footer / More menu) sends a floating emoji
+(👍❤️😂🎉👏😮🙌🔥) shown to everyone with the sender's name.
+
+### Copy meeting link
+Button at the bottom of the **People** panel copies `<origin>/room/<roomId>`.
+
+### Device selection
+In the pre-join screen and the **Layout → Devices** panel: choose **microphone**,
+**camera**, and **speaker** (output via `setSinkId`, where supported). Switching
+the camera works with virtual background on. Choices are saved to `localStorage`.
+
+### Reconnection handling
+A dropped socket shows a **"Reconnecting…"** overlay. When the network returns
+the page reloads and auto-rejoins (host via ownership, guest via a session flag)
+— skipping the pre-join screen and lobby. mediasoup transports are rebuilt
+cleanly on reload.
+
+### Network quality
+Each client samples its send-transport stats (packet loss + RTT) every few
+seconds and reports **good / ok / poor**; peers show **signal bars** on each tile.
+
+### Fullscreen / picture-in-picture
+Hover a tile → **⛶ fullscreen** or **⧉ picture-in-picture** (where supported).
+
+> All of the above are signaling/in-memory features — **no database migration
+> is required** for them.
+
 ## Virtual background
 
 Pick a background under the **Layout** settings panel. Options:
@@ -413,6 +482,8 @@ Pick a background under the **Layout** settings panel. Options:
 - **Blur** — Gaussian blur on everything except the person.
 - **Image presets** — Office, Beach (configurable in
   `frontend/components/LayoutSettingsPanel.tsx`).
+- **Upload** — pick your own image; it's processed locally (never uploaded to
+  the server) and applied as the background.
 
 How it works:
 
