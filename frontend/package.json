@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0",
+    "dev": "node run.js dev",
     "dev:https": "next dev -H 0.0.0.0 --experimental-https --experimental-https-key ../certs/key.pem --experimental-https-cert ../certs/cert.pem",
     "build": "next build",
-    "start": "next start"
+    "start": "node run.js start"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.18",
