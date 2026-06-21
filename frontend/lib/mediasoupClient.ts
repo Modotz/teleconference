@@ -82,6 +82,10 @@ export interface RoomCallbacks {
   onLockState?: (locked: boolean) => void;
   /** A peer reported its connection quality. */
   onPeerQuality?: (q: { peerId: string; level: string }) => void;
+  /** The host role moved to another participant. */
+  onHostChanged?: (h: { hostPeerId: string; hostUserId: string }) => void;
+  /** Meeting PIN was set/cleared. */
+  onPinState?: (hasPin: boolean) => void;
 }
 
 export class RoomClient {
@@ -130,7 +134,7 @@ export class RoomClient {
     });
   }
 
-  async join(roomId: string, displayName = '') {
+  async join(roomId: string, displayName = '', pin = '') {
     this.displayName = displayName;
     await new Promise<void>((resolve, reject) => {
       this.socket.once('connect', resolve);
@@ -140,6 +144,7 @@ export class RoomClient {
     let res = await this.emit<any>('joinRoom', {
       roomId,
       displayName: this.displayName,
+      pin,
     });
 
     // Non-hosts land in the lobby; block until a moderator admits us.
@@ -165,6 +170,9 @@ export class RoomClient {
       isHost,
       isCoHost,
       locked,
+      hasPin,
+      pin: hostPin,
+      startedAt,
       waitingList,
     } = res;
 
@@ -188,6 +196,9 @@ export class RoomClient {
       isHost: !!isHost,
       isCoHost: !!isCoHost,
       locked: !!locked,
+      hasPin: !!hasPin,
+      pin: (hostPin || '') as string,
+      startedAt: (startedAt || 0) as number,
       waitingList: (waitingList || []) as Array<{
         peerId: string;
         username: string;
@@ -291,6 +302,17 @@ export class RoomClient {
       this.callbacks.onLockState?.(!!locked)
     );
     this.socket.on('peerQuality', (q) => this.callbacks.onPeerQuality?.(q));
+    this.socket.on('hostChanged', (h) => this.callbacks.onHostChanged?.(h));
+    this.socket.on('pinState', ({ hasPin }) =>
+      this.callbacks.onPinState?.(!!hasPin)
+    );
+  }
+
+  transferHost(peerId: string) {
+    this.socket.emit('transferHost', { peerId });
+  }
+  setPin(pin: string): Promise<{ ok?: boolean; pin?: string; error?: string }> {
+    return this.emit('setPin', { pin });
   }
 
   sendReaction(emoji: string) {

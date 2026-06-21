@@ -57,6 +57,13 @@ export default function DashboardPage() {
       const { rooms } = await api.listRooms();
       setRooms(rooms);
     } catch (err: any) {
+      // Expired / invalid session → clear it and send back to login.
+      if (err?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.replace('/login');
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);

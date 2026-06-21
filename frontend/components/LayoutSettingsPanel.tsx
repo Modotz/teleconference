@@ -38,6 +38,8 @@ interface Props {
     onMic: (id: string) => void;
     onCam: (id: string) => void;
     onSpeaker: (id: string) => void;
+    noiseSuppress: boolean;
+    onNoise: (on: boolean) => void;
   };
 }
 
@@ -292,6 +294,13 @@ export default function LayoutSettingsPanel({
                   onChange={devices.onSpeaker}
                 />
               )}
+
+              <Toggle
+                label="Noise suppression"
+                hint="Reduce background noise from your microphone"
+                checked={devices.noiseSuppress}
+                onChange={devices.onNoise}
+              />
             </section>
           )}
 

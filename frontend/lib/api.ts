@@ -63,7 +63,11 @@ async function request<T>(
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed: ${res.status}`);
+    (err as any).status = res.status;
+    throw err;
+  }
   return data as T;
 }
 
@@ -77,6 +81,31 @@ export const api = {
     request<{ user: any; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+  googleLogin: (idToken: string) =>
+    request<{ user: any; token: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    }),
+  verifyEmail: (token: string) =>
+    request<{ ok: boolean }>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+  resendVerification: (email: string) =>
+    request<{ ok: boolean }>('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    request<{ ok: boolean }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
     }),
   me: () => request<{ user: any }>('/auth/me'),
 

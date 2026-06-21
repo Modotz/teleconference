@@ -37,6 +37,12 @@ export function registerSignaling(io) {
 
   // Whether a room is locked (no new joins). roomId -> boolean.
   const lockedRooms = new Map();
+  // Current host (may be transferred at runtime). roomId -> userId.
+  const roomHost = new Map();
+  // Optional meeting PIN (alternative to the lobby). roomId -> string.
+  const roomPins = new Map();
+  // When the meeting started (first join). roomId -> epoch ms.
+  const roomStart = new Map();
 
   // Co-host role remembered by userId so it survives a reconnect. roomId -> Set.
   const coHostUsers = new Map();
@@ -113,37 +119,44 @@ export function registerSignaling(io) {
       const cleanName = (name) =>
         (name && String(name).trim()) || user.username;
 
-      socket.on('joinRoom', async ({ roomId, displayName }, callback) => {
+      socket.on('joinRoom', async ({ roomId, displayName, pin }, callback) => {
         try {
           const dbRoom = await prisma.room.findUnique({ where: { id: roomId } });
           if (!dbRoom || !dbRoom.isActive) {
             return callback({ error: 'Room not found or inactive' });
           }
 
-          // The room owner is the host (can moderate, and skips the lobby).
-          const isHost = dbRoom.ownerId === user.id;
+          // Host = current host (room owner, unless transferred at runtime).
+          if (!roomHost.has(roomId)) roomHost.set(roomId, dbRoom.ownerId);
+          const isHost = roomHost.get(roomId) === user.id;
 
-          // A locked room rejects newcomers (already-admitted users may rejoin).
-          if (lockedRooms.get(roomId) && !isHost && !isAdmitted(roomId, user.id)) {
-            return callback({ error: 'locked' });
-          }
-
-          // Non-hosts who haven't been admitted yet wait in the lobby. Anyone
-          // already admitted (e.g. reconnecting after a drop) skips it.
           if (!isHost && !isAdmitted(roomId, user.id)) {
-            let w = waiting.get(roomId);
-            if (!w) {
-              w = new Map();
-              waiting.set(roomId, w);
+            // Locked rooms reject all newcomers.
+            if (lockedRooms.get(roomId)) return callback({ error: 'locked' });
+
+            const requiredPin = roomPins.get(roomId);
+            if (requiredPin) {
+              // PIN mode: correct PIN skips the lobby; wrong/missing is rejected.
+              if (String(pin || '') !== requiredPin) {
+                return callback({ error: 'pin' });
+              }
+              markAdmitted(roomId, user.id);
+            } else {
+              // Lobby mode: wait for a moderator to admit.
+              let w = waiting.get(roomId);
+              if (!w) {
+                w = new Map();
+                waiting.set(roomId, w);
+              }
+              const name = cleanName(displayName);
+              w.set(socket.id, { username: name, userId: user.id });
+              socket.data.lobbyRoomId = roomId;
+              notifyModerators(roomId, 'waitingPeer', {
+                peerId: socket.id,
+                username: name,
+              });
+              return callback({ inLobby: true });
             }
-            const name = cleanName(displayName);
-            w.set(socket.id, { username: name, userId: user.id });
-            socket.data.lobbyRoomId = roomId;
-            notifyModerators(roomId, 'waitingPeer', {
-              peerId: socket.id,
-              username: name,
-            });
-            return callback({ inLobby: true });
           }
 
           callback(await performJoin(roomId, isHost, displayName));
@@ -186,6 +199,7 @@ export function registerSignaling(io) {
         });
         currentRoomId = roomId;
         socket.join(roomId);
+        if (!roomStart.has(roomId)) roomStart.set(roomId, Date.now());
 
         const username = cleanName(displayName);
         const peer = {
@@ -264,6 +278,9 @@ export function registerSignaling(io) {
           isHost,
           isCoHost: peer.isCoHost,
           locked: !!lockedRooms.get(roomId),
+          hasPin: !!roomPins.get(roomId),
+          pin: isHost ? roomPins.get(roomId) || '' : undefined,
+          startedAt: roomStart.get(roomId) || Date.now(),
           waitingList,
         };
       }
@@ -606,6 +623,34 @@ export function registerSignaling(io) {
       callback?.({ ok: true });
     });
 
+    // Host sets/clears the meeting PIN (empty = no PIN, lobby mode resumes).
+    socket.on('setPin', ({ pin }, callback) => {
+      if (!requireHost()) return callback?.({ error: 'Not host' });
+      const p = String(pin || '').trim();
+      if (p) roomPins.set(currentRoomId, p);
+      else roomPins.delete(currentRoomId);
+      io.to(currentRoomId).emit('pinState', { hasPin: !!p });
+      callback?.({ ok: true, pin: p });
+    });
+
+    // Host hands the host role to another participant.
+    socket.on('transferHost', ({ peerId }, callback) => {
+      if (!requireHost()) return callback?.({ error: 'Not host' });
+      const target = getPeer(currentRoomId, peerId);
+      if (!target) return callback?.({ error: 'Peer not found' });
+      const self = getPeer(currentRoomId, socket.id);
+      roomHost.set(currentRoomId, target.userId);
+      target.isHost = true;
+      target.isCoHost = false;
+      coHostUsers.get(currentRoomId)?.delete(target.userId);
+      if (self) self.isHost = false;
+      io.to(currentRoomId).emit('hostChanged', {
+        hostPeerId: peerId,
+        hostUserId: target.userId,
+      });
+      callback?.({ ok: true });
+    });
+
     // Host ends the meeting for everyone.
     socket.on('endRoom', async (_data, callback) => {
       if (!requireHost()) return callback?.({ error: 'Not host' });
@@ -624,6 +669,9 @@ export function registerSignaling(io) {
       admittedUsers.delete(roomId);
       coHostUsers.delete(roomId);
       lockedRooms.delete(roomId);
+      roomHost.delete(roomId);
+      roomPins.delete(roomId);
+      roomStart.delete(roomId);
       // Mark inactive so nobody can rejoin.
       try {
         await prisma.room.update({
@@ -753,6 +801,11 @@ export function registerSignaling(io) {
       });
       socket.to(currentRoomId).emit('peerLeft', { peerId: socket.id });
       removePeer(currentRoomId, socket.id);
+
+      // When the room empties, reset the meeting clock for the next session.
+      if (!getRoom(currentRoomId) || getRoom(currentRoomId).peers.size === 0) {
+        roomStart.delete(currentRoomId);
+      }
 
       try {
         const last = await prisma.participant.findFirst({

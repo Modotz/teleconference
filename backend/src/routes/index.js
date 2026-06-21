@@ -14,6 +14,11 @@ router.get('/health', (_, res) => res.json({ ok: true }));
 // Auth
 router.post('/auth/register', authCtrl.register);
 router.post('/auth/login', authCtrl.login);
+router.post('/auth/google', authCtrl.googleLogin);
+router.post('/auth/verify-email', authCtrl.verifyEmail);
+router.post('/auth/resend-verification', authCtrl.resendVerification);
+router.post('/auth/forgot-password', authCtrl.forgotPassword);
+router.post('/auth/reset-password', authCtrl.resetPassword);
 router.get('/auth/me', authMiddleware, authCtrl.me);
 
 // Rooms (video conference)

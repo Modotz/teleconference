@@ -31,6 +31,8 @@ import {
   Lock,
   Unlock,
   SmilePlus,
+  MoreVertical,
+  ShieldCheck,
   MicOff as MicOffIcon,
   Video as VideoIcon,
   VideoOff as VideoOffIcon,
@@ -164,6 +166,17 @@ export default function RoomPage({
   const [locked, setLocked] = useState(false);
   const [peerQuality, setPeerQuality] = useState<Map<string, string>>(new Map());
   const [myQuality, setMyQuality] = useState('good');
+
+  // Meeting duration, PIN, and noise suppression.
+  const [meetingStart, setMeetingStart] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [meetingPin, setMeetingPin] = useState(''); // host's current PIN
+  const [pinDraft, setPinDraft] = useState('');
+  const [hasPin, setHasPin] = useState(false);
+  const [joinPin, setJoinPin] = useState(''); // pre-join PIN entry
+  const [pinError, setPinError] = useState('');
+  const [noiseSuppress, setNoiseSuppress] = useState(true);
+  const noiseRef = useRef(true);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
 
@@ -234,6 +247,9 @@ export default function RoomPage({
     const savedMic = localStorage.getItem('dev:mic') || '';
     const savedCam = localStorage.getItem('dev:cam') || '';
     setSpeakerId(localStorage.getItem('dev:speaker') || '');
+    const ns = localStorage.getItem('dev:noise') !== '0';
+    setNoiseSuppress(ns);
+    noiseRef.current = ns;
 
     let mounted = true;
     (async () => {
@@ -242,7 +258,12 @@ export default function RoomPage({
           video: savedCam
             ? { deviceId: { ideal: savedCam }, width: 640, height: 360 }
             : { width: 640, height: 360 },
-          audio: savedMic ? { deviceId: { ideal: savedMic } } : true,
+          audio: {
+            ...(savedMic ? { deviceId: { ideal: savedMic } } : {}),
+            noiseSuppression: ns,
+            echoCancellation: true,
+            autoGainControl: true,
+          },
         });
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
@@ -312,7 +333,12 @@ export default function RoomPage({
     if (!stream) return;
     try {
       const tmp = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: deviceId } },
+        audio: {
+          deviceId: { exact: deviceId },
+          noiseSuppression: noiseRef.current,
+          echoCancellation: true,
+          autoGainControl: true,
+        },
       });
       const newTrack = tmp.getAudioTracks()[0];
       newTrack.enabled = micOnRef.current;
@@ -365,6 +391,46 @@ export default function RoomPage({
     setSpeakerId(deviceId);
     localStorage.setItem('dev:speaker', deviceId);
   }
+
+  function toggleNoiseSuppress(on: boolean) {
+    setNoiseSuppress(on);
+    noiseRef.current = on;
+    localStorage.setItem('dev:noise', on ? '1' : '0');
+    // Apply to the live mic track without re-acquiring it.
+    localStreamRef.current
+      ?.getAudioTracks()[0]
+      ?.applyConstraints({
+        noiseSuppression: on,
+        echoCancellation: true,
+        autoGainControl: true,
+      })
+      .catch(() => {});
+  }
+
+  async function savePin() {
+    const res = await clientRef.current?.setPin(pinDraft.trim());
+    if (res?.ok) {
+      setMeetingPin(res.pin || '');
+      setHasPin(!!res.pin);
+    }
+  }
+
+  function makeHost(peerId: string, name: string) {
+    if (confirm(`Make ${name} the host? You will no longer be host.`)) {
+      clientRef.current?.transferHost(peerId);
+    }
+  }
+
+  // Tick the meeting-duration clock once per second.
+  useEffect(() => {
+    if (!meetingStart) return;
+    const id = setInterval(
+      () => setElapsed(Math.floor((Date.now() - meetingStart) / 1000)),
+      1000
+    );
+    setElapsed(Math.floor((Date.now() - meetingStart) / 1000));
+    return () => clearInterval(id);
+  }, [meetingStart]);
 
   // Play a short ding (used to alert the host of a lobby request).
   function playDing() {
@@ -457,6 +523,27 @@ export default function RoomPage({
           onPeerQuality: ({ peerId, level }) => {
             setPeerQuality((prev) => new Map(prev).set(peerId, level));
           },
+          onPinState: (has) => {
+            setHasPin(has);
+            if (!has) setMeetingPin('');
+          },
+          onHostChanged: ({ hostPeerId }) => {
+            const myId = clientRef.current?.socket.id;
+            setAmHost(hostPeerId === myId);
+            if (hostPeerId === myId) setAmCoHost(false);
+            // Reflect the new/old host in the roster.
+            setRoster((prev) => {
+              const next = new Map(prev);
+              next.forEach((info, pid) => {
+                next.set(pid, {
+                  ...info,
+                  isHost: pid === hostPeerId,
+                  isCoHost: pid === hostPeerId ? false : info.isCoHost,
+                });
+              });
+              return next;
+            });
+          },
           onMeetingEnded: () => {
             sessionStorage.removeItem(`admitted:${roomId}`);
             if (!endingRef.current) {
@@ -481,11 +568,38 @@ export default function RoomPage({
               if (!entry) return prev;
               return new Map(prev).set(peerId, { ...entry, isCoHost: value });
             });
-            if (peerId === clientRef.current?.socket.id) setAmCoHost(value);
+            if (peerId === clientRef.current?.socket.id) {
+              setAmCoHost(value);
+              if (
+                value &&
+                typeof Notification !== 'undefined' &&
+                Notification.permission === 'default'
+              ) {
+                Notification.requestPermission().catch(() => {});
+              }
+            }
           },
           onWaitingPeer: ({ peerId, username }) => {
             setWaitingPeers((prev) => new Map(prev).set(peerId, { username }));
             playDing();
+            // Browser notification when the tab isn't focused.
+            if (
+              typeof Notification !== 'undefined' &&
+              Notification.permission === 'granted' &&
+              document.hidden
+            ) {
+              try {
+                const n = new Notification('Someone is waiting to join', {
+                  body: username,
+                });
+                n.onclick = () => {
+                  window.focus();
+                  n.close();
+                };
+              } catch {
+                /* ignore */
+              }
+            }
           },
           onWaitingPeerLeft: (peerId) => {
             setWaitingPeers((prev) => {
@@ -578,8 +692,11 @@ export default function RoomPage({
           isHost,
           isCoHost,
           locked: lockedState,
+          hasPin: hasPinState,
+          pin: pinState,
+          startedAt,
           waitingList,
-        } = await client.join(roomId, name);
+        } = await client.join(roomId, name, joinPin);
         // join() resolves once we're actually in (lobby cleared).
         setPrejoin(false);
         setLobby(false);
@@ -588,6 +705,19 @@ export default function RoomPage({
         setAmHost(!!isHost);
         setAmCoHost(!!isCoHost);
         setLocked(!!lockedState);
+        setHasPin(!!hasPinState);
+        setMeetingPin(pinState || '');
+        setPinDraft(pinState || '');
+        setMeetingStart(startedAt || Date.now());
+        setPinError('');
+        // Moderators get desktop notifications for lobby requests.
+        if (
+          isHost &&
+          typeof Notification !== 'undefined' &&
+          Notification.permission === 'default'
+        ) {
+          Notification.requestPermission().catch(() => {});
+        }
         // Remember admission so a reconnect/reload skips the pre-join + lobby.
         if (!isHost) sessionStorage.setItem(`admitted:${roomId}`, '1');
         if (initialHands?.length) {
@@ -637,6 +767,11 @@ export default function RoomPage({
         if (err?.message === 'locked') {
           alert('This meeting is locked by the host.');
           router.replace('/dashboard');
+          return;
+        }
+        if (err?.message === 'pin') {
+          setPinError('This meeting requires a PIN. Please enter it to join.');
+          setPrejoin(true);
           return;
         }
         console.error(err);
@@ -1089,6 +1224,27 @@ export default function RoomPage({
             )}
         </div>
 
+        {prejoin && (
+          <div className="w-full max-w-sm text-left">
+            <label className="block text-xs text-slate-400 mb-1">
+              Meeting PIN (if required)
+            </label>
+            <input
+              value={joinPin}
+              onChange={(e) => {
+                setJoinPin(e.target.value);
+                setPinError('');
+              }}
+              placeholder="Enter PIN"
+              maxLength={10}
+              className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {pinError && (
+              <p className="text-amber-400 text-xs mt-1">{pinError}</p>
+            )}
+          </div>
+        )}
+
         {error && (
           <p className="text-red-400 text-sm max-w-sm">{error}</p>
         )}
@@ -1242,6 +1398,14 @@ export default function RoomPage({
               title="Meeting is locked"
             >
               <Lock className="w-3.5 h-3.5" />
+            </span>
+          )}
+          {meetingStart > 0 && (
+            <span
+              className="text-xs text-slate-400 shrink-0 tabular-nums"
+              title="Meeting duration"
+            >
+              {formatDuration(elapsed)}
             </span>
           )}
           {recorder.recording && (
@@ -1593,6 +1757,30 @@ export default function RoomPage({
                   )}
                 </button>
               )}
+              {amHost && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={pinDraft}
+                      onChange={(e) => setPinDraft(e.target.value)}
+                      placeholder="Meeting PIN (optional)"
+                      maxLength={10}
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={savePin}
+                      className="px-3 py-2 text-sm bg-slate-800 hover:bg-slate-700 rounded shrink-0"
+                    >
+                      Save
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    {hasPin
+                      ? 'PIN active — guests with the PIN skip the lobby. Clear + Save to disable.'
+                      : 'Set a PIN to let guests join directly (bypasses the lobby).'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1665,6 +1853,11 @@ export default function RoomPage({
                     amHost && !info.isHost
                       ? () =>
                           clientRef.current?.hostSetCoHost(peerId, !info.isCoHost)
+                      : undefined
+                  }
+                  onMakeHost={
+                    amHost && !info.isHost
+                      ? () => makeHost(peerId, info.username)
                       : undefined
                   }
                   onKick={
@@ -1898,6 +2091,8 @@ export default function RoomPage({
           onMic: switchMic,
           onCam: switchCamera,
           onSpeaker: selectSpeaker,
+          noiseSuppress,
+          onNoise: toggleNoiseSuppress,
         }}
       />
     </main>
@@ -1908,6 +2103,15 @@ function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+
+function formatDuration(s: number) {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(r).padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
 function PreJoinDevice({
@@ -1949,6 +2153,7 @@ function ParticipantRow({
   onToggleMute,
   onToggleCam,
   onToggleCoHost,
+  onMakeHost,
   onKick,
   onRename,
 }: {
@@ -1960,9 +2165,11 @@ function ParticipantRow({
   onToggleMute?: () => void;
   onToggleCam?: () => void;
   onToggleCoHost?: () => void;
+  onMakeHost?: () => void;
   onKick?: () => void;
   onRename?: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div className="flex items-center gap-1 px-2 py-1.5 rounded hover:bg-slate-800/60">
       <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
@@ -2038,17 +2245,51 @@ function ParticipantRow({
         </span>
       )}
 
-      {/* Promote/demote co-host (host only) */}
-      {onToggleCoHost && (
-        <button
-          onClick={onToggleCoHost}
-          title={isCoHost ? 'Remove co-host' : 'Make co-host'}
-          className={`p-1.5 rounded hover:bg-slate-700 shrink-0 ${
-            isCoHost ? 'text-amber-300' : 'text-slate-400'
-          }`}
-        >
-          <Crown className="w-4 h-4" />
-        </button>
+      {/* Role actions menu (host only): make host / co-host */}
+      {(onToggleCoHost || onMakeHost) && (
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            title="More actions"
+            className="p-1.5 rounded hover:bg-slate-700 text-slate-400"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {menuOpen && (
+            <>
+              <div
+                onClick={() => setMenuOpen(false)}
+                className="fixed inset-0 z-30"
+                aria-hidden
+              />
+              <div className="absolute right-0 top-full mt-1 z-40 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[160px]">
+                {onMakeHost && (
+                  <button
+                    onClick={() => {
+                      onMakeHost();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-700"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Make host
+                  </button>
+                )}
+                {onToggleCoHost && (
+                  <button
+                    onClick={() => {
+                      onToggleCoHost();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-700"
+                  >
+                    <Crown className="w-4 h-4" />
+                    {isCoHost ? 'Remove co-host' : 'Make co-host'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {onKick && (
