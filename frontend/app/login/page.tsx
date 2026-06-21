@@ -221,15 +221,7 @@ export default function LoginPage() {
             </label>
 
             <label className="block">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">Password</span>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-blue-400 hover:text-blue-300"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <span className="text-xs font-medium text-slate-400">Password</span>
               <div className="mt-1 relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
@@ -265,6 +257,13 @@ export default function LoginPage() {
               )}
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
+
+            <Link
+              href="/forgot-password"
+              className="text-sm text-blue-400 hover:text-blue-300 text-center"
+            >
+              Forgot password?
+            </Link>
 
             {GOOGLE_CLIENT_ID && (
               <>
