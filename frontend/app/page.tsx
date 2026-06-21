@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { APP_NAME } from '@/lib/config';
 
 export default function Home() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function Home() {
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
             <Video className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold tracking-tight">Teleconference</span>
+          <span className="font-bold tracking-tight">{APP_NAME}</span>
         </div>
         <Link
           href="/login"
@@ -98,16 +99,16 @@ export default function Home() {
         </div>
 
         {/* Feature chips */}
-        <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
+        {/* <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
           <Chip icon={Users} text="HD video & audio" />
           <Chip icon={MonitorUp} text="Screen & backgrounds" />
           <Chip icon={MessageSquare} text="Chat & reactions" />
           <Chip icon={ShieldCheck} text="Lobby & moderation" />
-        </div>
+        </div> */}
       </section>
 
       <footer className="relative z-10 text-center text-xs text-slate-500 py-6">
-        © {new Date().getFullYear()} Teleconference · Mediasoup + Next.js
+        © {new Date().getFullYear()} {APP_NAME} · Mediasoup + Next.js
       </footer>
     </main>
   );

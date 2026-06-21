@@ -11,6 +11,9 @@
  * Set NEXT_PUBLIC_API_URL to override (e.g. backend on a separate host).
  * Set NEXT_PUBLIC_API_PORT to change the backend port (default 4000).
  */
+/** App/brand name + tab title. Override with NEXT_PUBLIC_APP_NAME in .env. */
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Teleconference';
+
 export function getServerBase(): string {
   const override = process.env.NEXT_PUBLIC_API_URL;
   if (override) return override;

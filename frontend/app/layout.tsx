@@ -1,9 +1,10 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { APP_NAME } from '@/lib/config';
 
 export const metadata: Metadata = {
-  title: 'Teleconference',
-  description: 'Mediasoup-based teleconference',
+  title: APP_NAME,
+  description: `${APP_NAME} — video meetings in your browser`,
 };
 
 export const viewport: Viewport = {

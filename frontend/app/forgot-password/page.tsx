@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Video, Mail, MailCheck } from 'lucide-react';
 import { api } from '@/lib/api';
+import { APP_NAME } from '@/lib/config';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ export default function ForgotPasswordPage() {
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
             <Video className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-bold">Teleconference</span>
+          <span className="text-lg font-bold">{APP_NAME}</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">

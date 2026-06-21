@@ -15,6 +15,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { APP_NAME } from '@/lib/config';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
@@ -145,7 +146,7 @@ export default function LoginPage() {
             <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
               <Video className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Teleconference</span>
+            <span className="text-xl font-bold tracking-tight">{APP_NAME}</span>
           </div>
 
           <div className="max-w-md">
@@ -166,7 +167,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-xs text-white/50">
-            © {new Date().getFullYear()} Teleconference
+            © {new Date().getFullYear()} {APP_NAME}
           </p>
         </div>
       </section>
@@ -179,7 +180,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
               <Video className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold">Teleconference</span>
+            <span className="text-lg font-bold">{APP_NAME}</span>
           </div>
 
           <h1 className="text-2xl font-bold">Welcome back</h1>
