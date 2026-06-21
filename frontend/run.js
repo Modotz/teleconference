@@ -14,7 +14,7 @@ const mode = process.argv[2] === 'dev' ? 'dev' : 'start';
 // Populate process.env from .env / .env.local / .env.[mode]
 loadEnvConfig(process.cwd(), mode === 'dev');
 
-const port = process.env.PORT || '3000';
+const port = process.env.PORT || '3001';
 const args = [mode, '-p', port];
 if (mode === 'dev') args.push('-H', '0.0.0.0');
 
