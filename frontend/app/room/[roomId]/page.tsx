@@ -1534,8 +1534,10 @@ export default function RoomPage({
         <section className="flex-1 p-2 sm:p-4 overflow-y-auto">
           {/* Screen share always takes top spotlight when active */}
           {spotlight ? (
-            <div className="flex flex-col gap-3 h-full">
-              <div className="w-full">
+            // Screen on the left (desktop) / top (mobile); participants on the
+            // right column (desktop) / a scrollable strip (mobile).
+            <div className="flex flex-col md:flex-row gap-3 h-full">
+              <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center">
                 <VideoTile
                   stream={spotlight.stream}
                   username={spotlight.username}
@@ -1546,8 +1548,12 @@ export default function RoomPage({
                   zoomable
                 />
               </div>
-              <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                {cameraTiles.map((t) => renderTile(t, { thumb: true }))}
+              <div className="shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-y-auto md:w-48 lg:w-56">
+                {cameraTiles.map((t) => (
+                  <div key={t.key} className="w-32 md:w-full shrink-0">
+                    {renderTile(t, { thumb: true })}
+                  </div>
+                ))}
               </div>
             </div>
           ) : settings.mode === 'grid' ? (
