@@ -33,12 +33,17 @@ import {
   SmilePlus,
   MoreVertical,
   ShieldCheck,
+  SwitchCamera,
   MicOff as MicOffIcon,
   Video as VideoIcon,
   VideoOff as VideoOffIcon,
 } from 'lucide-react';
 import { RoomClient, type MediaSource } from '@/lib/mediasoupClient';
 import { uploadFile, api, type UploadedAttachment } from '@/lib/api';
+import {
+  createCompositeStream,
+  type Composite,
+} from '@/lib/recordingComposer';
 import VideoTile from '@/components/VideoTile';
 import IconButton from '@/components/IconButton';
 import ChatMessage from '@/components/ChatMessage';
@@ -153,6 +158,8 @@ export default function RoomPage({
   const [micId, setMicId] = useState('');
   const [camId, setCamId] = useState('');
   const [speakerId, setSpeakerId] = useState('');
+  const [flipping, setFlipping] = useState(false);
+  const facingRef = useRef<'user' | 'environment'>('user');
   // Display name shown to others (editable in the lobby and in-meeting).
   const [displayName, setDisplayName] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
@@ -189,6 +196,9 @@ export default function RoomPage({
   const camOnRef = useRef(true);
   // Guards against joining twice (auto host-join + manual click / StrictMode).
   const joinStartedRef = useRef(false);
+  // Composite recording handle + a live mirror of state for its source getters.
+  const compositeRef = useRef<Composite | null>(null);
+  const recSrcRef = useRef<any>(null);
   // True when WE (the host) initiated ending the meeting (suppresses our alert).
   const endingRef = useRef(false);
   const chatListRef = useRef<HTMLDivElement>(null);
@@ -304,6 +314,8 @@ export default function RoomPage({
     return () => {
       mounted = false;
       joinStartedRef.current = false;
+      compositeRef.current?.stop();
+      compositeRef.current = null;
       navigator.mediaDevices?.removeEventListener?.(
         'devicechange',
         refreshDevices
@@ -390,6 +402,37 @@ export default function RoomPage({
   function selectSpeaker(deviceId: string) {
     setSpeakerId(deviceId);
     localStorage.setItem('dev:speaker', deviceId);
+  }
+
+  // Flip between front (user) and back (environment) camera — mobile.
+  async function flipCamera() {
+    const stream = localStreamRef.current;
+    if (!stream || flipping) return;
+    const next = facingRef.current === 'environment' ? 'user' : 'environment';
+    setFlipping(true);
+    try {
+      const tmp = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: next }, width: 640, height: 360 },
+      });
+      const newTrack = tmp.getVideoTracks()[0];
+      newTrack.enabled = camOnRef.current;
+      const old = stream.getVideoTracks()[0];
+      if (old) {
+        stream.removeTrack(old);
+        old.stop();
+      }
+      stream.addTrack(newTrack);
+      if (vbg.mode.kind === 'none') {
+        await clientRef.current?.replaceCameraTrack(newTrack);
+      }
+      facingRef.current = next;
+      setCamId(newTrack.getSettings().deviceId || '');
+      refreshDevices();
+    } catch (err: any) {
+      setError(err.message || 'Failed to switch camera');
+    } finally {
+      setFlipping(false);
+    }
   }
 
   function toggleNoiseSuppress(on: boolean) {
@@ -929,6 +972,8 @@ export default function RoomPage({
       clientRef.current?.endMeeting();
     }
     recorder.stop();
+    compositeRef.current?.stop();
+    compositeRef.current = null;
     // Intentional leave: forget admission so next time we go through the lobby.
     sessionStorage.removeItem(`admitted:${roomId}`);
     clientRef.current?.leave();
@@ -1026,17 +1071,72 @@ export default function RoomPage({
     setEmojiOpen(false);
   }
 
+  // Keep a live snapshot of state for the recording composer's getters.
+  useEffect(() => {
+    recSrcRef.current = {
+      localStream,
+      outboundStream,
+      localScreenStream,
+      remotes,
+      me,
+      displayName,
+    };
+  });
+
   function toggleRecording() {
     if (recorder.recording) {
       recorder.stop();
+      compositeRef.current?.stop();
+      compositeRef.current = null;
       return;
     }
-    const streamToRecord = localScreenStream || localStream;
-    if (!streamToRecord) {
+    if (!localStreamRef.current) {
       setError('No stream available to record');
       return;
     }
-    recorder.start(streamToRecord, `room-${roomId.slice(0, 8)}.webm`);
+    // Composite everyone (cameras + screen share) + mixed audio.
+    const composite = createCompositeStream({
+      getVideoSources: () => {
+        const r = recSrcRef.current;
+        if (!r) return [];
+        const sources: any[] = [];
+        const myName = r.displayName || r.me?.username || 'You';
+        if (r.localScreenStream)
+          sources.push({
+            stream: r.localScreenStream,
+            isScreen: true,
+            label: `${myName} (screen)`,
+          });
+        for (const p of r.remotes.values())
+          if (p.screenStream)
+            sources.push({
+              stream: p.screenStream,
+              isScreen: true,
+              label: `${p.username} (screen)`,
+            });
+        sources.push({
+          stream: r.outboundStream || r.localStream,
+          label: `${myName} (you)`,
+        });
+        for (const p of r.remotes.values())
+          if (p.cameraStream)
+            sources.push({ stream: p.cameraStream, label: p.username });
+        return sources;
+      },
+      getAudioStreams: () => {
+        const r = recSrcRef.current;
+        if (!r) return [];
+        const arr: MediaStream[] = [];
+        if (r.localStream) arr.push(r.localStream);
+        for (const p of r.remotes.values()) {
+          if (p.cameraStream) arr.push(p.cameraStream);
+          if (p.screenStream) arr.push(p.screenStream);
+        }
+        return arr;
+      },
+    });
+    compositeRef.current = composite;
+    recorder.start(composite.stream, `room-${roomId.slice(0, 8)}.webm`);
   }
 
   const remoteList = Array.from(remotes.values());
@@ -1126,6 +1226,9 @@ export default function RoomPage({
         speakerId={speakerId}
         quality={
           t.isLocal ? myQuality : t.peerId ? peerQuality.get(t.peerId) : undefined
+        }
+        onFlipCamera={
+          t.isLocal && cams.length > 1 ? flipCamera : undefined
         }
         onTogglePin={t.peerId ? () => togglePin(t.peerId!) : undefined}
         thumb={opts.thumb}
@@ -1440,6 +1543,7 @@ export default function RoomPage({
                   isLocal={spotlight.type === 'local-screen'}
                   label={`${spotlight.username} is presenting`}
                   speakerId={speakerId}
+                  zoomable
                 />
               </div>
               <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
@@ -2036,6 +2140,16 @@ export default function RoomPage({
                       setMoreOpen(false);
                     }}
                   />
+                  {cams.length > 1 && (
+                    <MenuItem
+                      icon={SwitchCamera}
+                      label="Flip camera"
+                      onClick={() => {
+                        flipCamera();
+                        setMoreOpen(false);
+                      }}
+                    />
+                  )}
                   <MenuItem
                     icon={Users}
                     label="Participants"

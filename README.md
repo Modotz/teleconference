@@ -1,3 +1,6 @@
+# Run PM2
+ pm2 start src/server.js
+
 # Teleconference (Mediasoup + Next.js + PostgreSQL)
 
 A multi-party teleconference application using:
