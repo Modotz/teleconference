@@ -194,6 +194,12 @@ export default function RoomPage({
   const captionsOnRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const lastInterimRef = useRef(0);
+  const [captionLang, setCaptionLang] = useState('en-US');
+
+  function selectCaptionLang(lang: string) {
+    setCaptionLang(lang);
+    localStorage.setItem('cap:lang', lang);
+  }
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
 
@@ -270,6 +276,9 @@ export default function RoomPage({
     const ns = localStorage.getItem('dev:noise') !== '0';
     setNoiseSuppress(ns);
     noiseRef.current = ns;
+    setCaptionLang(
+      localStorage.getItem('cap:lang') || navigator.language || 'en-US'
+    );
 
     let mounted = true;
     (async () => {
@@ -501,7 +510,7 @@ export default function RoomPage({
     const rec = new SR();
     rec.continuous = true;
     rec.interimResults = true;
-    rec.lang = navigator.language || 'en-US';
+    rec.lang = captionLang || navigator.language || 'en-US';
     rec.onresult = (e: any) => {
       let interim = '';
       let final = '';
@@ -546,7 +555,7 @@ export default function RoomPage({
       }
       recognitionRef.current = null;
     };
-  }, [captionsOn, micOn]);
+  }, [captionsOn, micOn, captionLang]);
 
   // Drop caption lines a few seconds after the last update.
   useEffect(() => {
@@ -2345,6 +2354,8 @@ export default function RoomPage({
           noiseSuppress,
           onNoise: toggleNoiseSuppress,
         }}
+        captionLang={captionLang}
+        onCaptionLang={selectCaptionLang}
       />
     </main>
   );

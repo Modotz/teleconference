@@ -41,7 +41,27 @@ interface Props {
     noiseSuppress: boolean;
     onNoise: (on: boolean) => void;
   };
+  /** Live-caption language. */
+  captionLang?: string;
+  onCaptionLang?: (lang: string) => void;
 }
+
+const CAPTION_LANGS: { code: string; label: string }[] = [
+  { code: 'en-US', label: 'English (US)' },
+  { code: 'en-GB', label: 'English (UK)' },
+  { code: 'id-ID', label: 'Indonesia' },
+  { code: 'ms-MY', label: 'Melayu' },
+  { code: 'es-ES', label: 'Español' },
+  { code: 'pt-BR', label: 'Português (BR)' },
+  { code: 'fr-FR', label: 'Français' },
+  { code: 'de-DE', label: 'Deutsch' },
+  { code: 'ar-SA', label: 'العربية' },
+  { code: 'hi-IN', label: 'हिन्दी' },
+  { code: 'zh-CN', label: '中文 (普通话)' },
+  { code: 'ja-JP', label: '日本語' },
+  { code: 'ko-KR', label: '한국어' },
+  { code: 'ru-RU', label: 'Русский' },
+];
 
 const BG_PRESETS: { key: string; label: string; mode: BackgroundMode; preview: string }[] = [
   { key: 'none', label: 'None', mode: { kind: 'none' }, preview: '∅' },
@@ -101,6 +121,8 @@ export default function LayoutSettingsPanel({
   customBg,
   onUploadBackground,
   devices,
+  captionLang,
+  onCaptionLang,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const speakerSupported =
@@ -301,6 +323,32 @@ export default function LayoutSettingsPanel({
                 checked={devices.noiseSuppress}
                 onChange={devices.onNoise}
               />
+            </section>
+          )}
+
+          {/* Live captions */}
+          {onCaptionLang && (
+            <section>
+              <h3 className="text-sm font-medium text-slate-300 mb-2">
+                Live captions
+              </h3>
+              <label className="block">
+                <span className="text-xs text-slate-400">Spoken language</span>
+                <select
+                  value={captionLang}
+                  onChange={(e) => onCaptionLang(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {CAPTION_LANGS.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-slate-500 mt-2">
+                The language you speak, for the Captions (CC) button.
+              </p>
             </section>
           )}
 
