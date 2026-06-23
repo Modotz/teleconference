@@ -498,6 +498,18 @@ export function registerSignaling(io) {
       });
     });
 
+    // Live caption text (speech-to-text done on each client) -> broadcast.
+    socket.on('caption', ({ text, isFinal }) => {
+      const peer = getPeer(currentRoomId, socket.id);
+      if (!peer || !text) return;
+      io.to(currentRoomId).emit('caption', {
+        peerId: socket.id,
+        username: peer.username,
+        text: String(text).slice(0, 300),
+        isFinal: !!isFinal,
+      });
+    });
+
     // Self-reported connection quality so peers can show a signal indicator.
     socket.on('quality', ({ level }) => {
       if (!getPeer(currentRoomId, socket.id)) return;

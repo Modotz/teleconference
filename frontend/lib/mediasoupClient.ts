@@ -86,6 +86,13 @@ export interface RoomCallbacks {
   onHostChanged?: (h: { hostPeerId: string; hostUserId: string }) => void;
   /** Meeting PIN was set/cleared. */
   onPinState?: (hasPin: boolean) => void;
+  /** A live caption (speech-to-text) line from a participant. */
+  onCaption?: (c: {
+    peerId: string;
+    username: string;
+    text: string;
+    isFinal: boolean;
+  }) => void;
 }
 
 export class RoomClient {
@@ -306,6 +313,11 @@ export class RoomClient {
     this.socket.on('pinState', ({ hasPin }) =>
       this.callbacks.onPinState?.(!!hasPin)
     );
+    this.socket.on('caption', (c) => this.callbacks.onCaption?.(c));
+  }
+
+  sendCaption(text: string, isFinal: boolean) {
+    this.socket.emit('caption', { text, isFinal });
   }
 
   transferHost(peerId: string) {

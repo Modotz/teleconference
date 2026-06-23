@@ -34,6 +34,7 @@ import {
   MoreVertical,
   ShieldCheck,
   SwitchCamera,
+  Captions,
   MicOff as MicOffIcon,
   Video as VideoIcon,
   VideoOff as VideoOffIcon,
@@ -184,6 +185,15 @@ export default function RoomPage({
   const [pinError, setPinError] = useState('');
   const [noiseSuppress, setNoiseSuppress] = useState(true);
   const noiseRef = useRef(true);
+
+  // Live captions (speech-to-text via the browser's Web Speech API).
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const [captions, setCaptions] = useState<
+    Map<string, { name: string; text: string; ts: number }>
+  >(new Map());
+  const captionsOnRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+  const lastInterimRef = useRef(0);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
 
@@ -475,6 +485,89 @@ export default function RoomPage({
     return () => clearInterval(id);
   }, [meetingStart]);
 
+  // Live captions: transcribe our own mic and broadcast (Web Speech API).
+  useEffect(() => {
+    captionsOnRef.current = captionsOn;
+    // Only transcribe while captions are on AND our mic is unmuted.
+    if (!captionsOn || !micOn) return;
+    const SR =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      setError('Live captions need Chrome (Web Speech API not supported).');
+      setCaptionsOn(false);
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = navigator.language || 'en-US';
+    rec.onresult = (e: any) => {
+      let interim = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) final += r[0].transcript;
+        else interim += r[0].transcript;
+      }
+      if (final.trim()) {
+        clientRef.current?.sendCaption(final.trim(), true);
+      } else if (interim.trim()) {
+        const now = Date.now();
+        if (now - lastInterimRef.current > 300) {
+          lastInterimRef.current = now;
+          clientRef.current?.sendCaption(interim.trim(), false);
+        }
+      }
+    };
+    rec.onend = () => {
+      // Recognition stops after pauses; restart while still enabled.
+      if (captionsOnRef.current) {
+        try {
+          rec.start();
+        } catch {
+          /* already started */
+        }
+      }
+    };
+    rec.onerror = () => {};
+    try {
+      rec.start();
+    } catch {
+      /* ignore */
+    }
+    recognitionRef.current = rec;
+    return () => {
+      rec.onend = null;
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
+      recognitionRef.current = null;
+    };
+  }, [captionsOn, micOn]);
+
+  // Drop caption lines a few seconds after the last update.
+  useEffect(() => {
+    if (!captionsOn) return;
+    const id = setInterval(() => {
+      setCaptions((prev) => {
+        const now = Date.now();
+        let changed = false;
+        const next = new Map(prev);
+        for (const [id2, c] of next) {
+          if (now - c.ts > 6000) {
+            next.delete(id2);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [captionsOn]);
+
   // Play a short ding (used to alert the host of a lobby request).
   function playDing() {
     try {
@@ -569,6 +662,11 @@ export default function RoomPage({
           onPinState: (has) => {
             setHasPin(has);
             if (!has) setMeetingPin('');
+          },
+          onCaption: ({ peerId, username, text }) => {
+            setCaptions((prev) =>
+              new Map(prev).set(peerId, { name: username, text, ts: Date.now() })
+            );
           },
           onHostChanged: ({ hostPeerId }) => {
             const myId = clientRef.current?.socket.id;
@@ -1435,6 +1533,24 @@ export default function RoomPage({
         </>
       )}
 
+      {/* Live captions */}
+      {captionsOn && captions.size > 0 && (
+        <div className="pointer-events-none fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-[min(90vw,640px)] flex flex-col items-center gap-1">
+          {Array.from(captions.values())
+            .sort((a, b) => a.ts - b.ts)
+            .slice(-3)
+            .map((c, i) => (
+              <div
+                key={i}
+                className="max-w-full bg-black/75 text-white text-sm sm:text-base rounded px-3 py-1.5"
+              >
+                <span className="text-blue-300 font-medium">{c.name}:</span>{' '}
+                {c.text}
+              </div>
+            ))}
+        </div>
+      )}
+
       {/* Reconnecting overlay when the network drops */}
       {reconnecting && (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm">
@@ -2071,6 +2187,12 @@ export default function RoomPage({
               active={reactionsOpen}
             />
             <IconButton
+              icon={Captions}
+              label="Captions"
+              onClick={() => setCaptionsOn((v) => !v)}
+              active={captionsOn}
+            />
+            <IconButton
               icon={Users}
               label="People"
               onClick={() => {
@@ -2156,6 +2278,15 @@ export default function RoomPage({
                       }}
                     />
                   )}
+                  <MenuItem
+                    icon={Captions}
+                    label={captionsOn ? 'Captions off' : 'Captions'}
+                    active={captionsOn}
+                    onClick={() => {
+                      setCaptionsOn((v) => !v);
+                      setMoreOpen(false);
+                    }}
+                  />
                   <MenuItem
                     icon={Users}
                     label="Participants"
