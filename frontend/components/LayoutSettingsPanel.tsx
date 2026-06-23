@@ -149,13 +149,13 @@ export default function LayoutSettingsPanel({
       />
       <div
         role="dialog"
-        aria-label="Layout settings"
+        aria-label="Settings"
         className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
           w-[min(420px,calc(100vw-2rem))] max-h-[85vh] overflow-y-auto
           bg-slate-900 border border-slate-800 rounded-lg z-50 shadow-2xl"
       >
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="font-semibold">Layout Settings</h2>
+          <h2 className="font-semibold">Settings</h2>
           <button
             onClick={onClose}
             aria-label="Close"

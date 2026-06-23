@@ -2212,7 +2212,7 @@ export default function RoomPage({
             />
             <IconButton
               icon={LayoutGrid}
-              label="Layout"
+              label="Settings"
               onClick={() => setSettingsOpen(true)}
               active={settingsOpen}
             />
@@ -2308,7 +2308,7 @@ export default function RoomPage({
                   />
                   <MenuItem
                     icon={LayoutGrid}
-                    label="Layout"
+                    label="Settings"
                     active={settingsOpen}
                     onClick={() => {
                       setSettingsOpen(true);
