@@ -539,7 +539,24 @@ export default function RoomPage({
         }
       }
     };
-    rec.onerror = () => {};
+    rec.onerror = (e: any) => {
+      const err = e?.error;
+      // Fatal: stop retrying and explain (common on mobile during a call).
+      if (
+        err === 'not-allowed' ||
+        err === 'service-not-allowed' ||
+        err === 'audio-capture'
+      ) {
+        captionsOnRef.current = false;
+        setCaptionsOn(false);
+        setError(
+          err === 'audio-capture'
+            ? "Captions couldn't use the microphone — on many phones speech-to-text can't run while in a call."
+            : 'Microphone permission was denied for captions.'
+        );
+      }
+      // 'no-speech' / 'aborted' / 'network' are transient — onend will restart.
+    };
     try {
       rec.start();
     } catch {
