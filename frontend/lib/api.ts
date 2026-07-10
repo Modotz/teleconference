@@ -118,6 +118,11 @@ export const api = {
   getRoom: (id: string) => request<{ room: any }>(`/rooms/${id}`),
   endRoom: (id: string) =>
     request<{ ok: boolean }>(`/rooms/${id}/end`, { method: 'POST' }),
+  inviteToRoom: (id: string, emails: string[]) =>
+    request<{ ok: boolean; sent: number }>(`/rooms/${id}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ emails }),
+    }),
 
   // Users + Chat
   listUsers: (q?: string) =>

@@ -12,6 +12,8 @@ import {
   Link as LinkIcon,
   Check,
   Calendar,
+  Mail,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [me, setMe] = useState<{ username: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [inviteRoom, setInviteRoom] = useState<Room | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -284,6 +287,7 @@ export default function DashboardPage() {
                 copied={copiedId === room.id}
                 onCopy={() => copyLink(room.id)}
                 onJoin={() => router.push(`/room/${room.id}`)}
+                onInvite={() => setInviteRoom(room)}
                 scheduled
               />
             ))}
@@ -312,11 +316,16 @@ export default function DashboardPage() {
                 copied={copiedId === room.id}
                 onCopy={() => copyLink(room.id)}
                 onJoin={() => router.push(`/room/${room.id}`)}
+                onInvite={() => setInviteRoom(room)}
               />
             ))}
           </ul>
         )}
       </section>
+
+      {inviteRoom && (
+        <InviteModal room={inviteRoom} onClose={() => setInviteRoom(null)} />
+      )}
     </main>
   );
 }
@@ -326,12 +335,14 @@ function RoomCard({
   copied,
   onCopy,
   onJoin,
+  onInvite,
   scheduled,
 }: {
   room: Room;
   copied: boolean;
   onCopy: () => void;
   onJoin: () => void;
+  onInvite: () => void;
   scheduled?: boolean;
 }) {
   return (
@@ -376,6 +387,14 @@ function RoomCard({
             )}
           </button>
           <button
+            onClick={onInvite}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            title="Invite by email"
+          >
+            <Mail className="w-4 h-4" />
+            <span className="hidden sm:inline">Invite</span>
+          </button>
+          <button
             onClick={onJoin}
             className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-sm font-medium"
           >
@@ -385,6 +404,100 @@ function RoomCard({
         </div>
       </div>
     </li>
+  );
+}
+
+function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<number | null>(null);
+  const [err, setErr] = useState('');
+
+  async function send() {
+    const emails = text
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!emails.length) {
+      setErr('Enter at least one email');
+      return;
+    }
+    setSending(true);
+    setErr('');
+    try {
+      const res = await api.inviteToRoom(room.id, emails);
+      setSent(res.sent);
+    } catch (e: any) {
+      setErr(e.message || 'Failed to send');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Mail className="w-4 h-4" /> Invite by email
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-100"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <p className="text-sm text-slate-400 mb-4 truncate">{room.name}</p>
+
+        {sent !== null ? (
+          <div className="text-center py-4">
+            <Check className="w-8 h-8 text-green-400 mx-auto mb-2" />
+            <p className="text-sm">
+              Invitations sent to <b>{sent}</b> recipient
+              {sent === 1 ? '' : 's'}.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <>
+            <label className="block text-xs text-slate-400 mb-1">
+              Email addresses (comma, space or newline separated)
+            </label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              placeholder="alice@example.com, bob@example.com"
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            />
+            {err && <p className="text-red-400 text-xs mt-1">{err}</p>}
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={send}
+                disabled={sending}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+              >
+                {sending ? 'Sending…' : 'Send invites'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

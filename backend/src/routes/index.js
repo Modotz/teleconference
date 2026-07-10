@@ -26,6 +26,7 @@ router.post('/rooms', authMiddleware, roomCtrl.createRoom);
 router.get('/rooms', authMiddleware, roomCtrl.listRooms);
 router.get('/rooms/:id', authMiddleware, roomCtrl.getRoom);
 router.post('/rooms/:id/end', authMiddleware, roomCtrl.endRoom);
+router.post('/rooms/:id/invite', authMiddleware, roomCtrl.inviteToRoom);
 
 // Users (contact picker)
 router.get('/users', authMiddleware, userCtrl.listUsers);
