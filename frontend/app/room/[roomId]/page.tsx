@@ -36,6 +36,7 @@ import {
   SwitchCamera,
   Captions,
   ClipboardList,
+  PenTool,
   MicOff as MicOffIcon,
   Video as VideoIcon,
   VideoOff as VideoOffIcon,
@@ -51,6 +52,7 @@ import IconButton from '@/components/IconButton';
 import ChatMessage from '@/components/ChatMessage';
 import LayoutSettingsPanel from '@/components/LayoutSettingsPanel';
 import PollsPanel from '@/components/PollsPanel';
+import Whiteboard, { type Stroke } from '@/components/Whiteboard';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { useVirtualBackground } from '@/hooks/useVirtualBackground';
@@ -203,6 +205,11 @@ export default function RoomPage({
   const [questions, setQuestions] = useState<Map<string, any>>(new Map());
   const [myVotes, setMyVotes] = useState<Map<string, number>>(new Map());
   const [myUpvotes, setMyUpvotes] = useState<Set<string>>(new Set());
+
+  // Whiteboard (strokes kept in a ref; the canvas redraws when dirty).
+  const [wbOpen, setWbOpen] = useState(false);
+  const wbStrokesRef = useRef<Stroke[]>([]);
+  const wbDirtyRef = useRef(true);
   const [captionLang, setCaptionLang] = useState('en-US');
 
   function selectCaptionLang(lang: string) {
@@ -717,6 +724,25 @@ export default function RoomPage({
             setQuestions((prev) => new Map(prev).set(q.id, q)),
           onQuestionUpdated: (q) =>
             setQuestions((prev) => new Map(prev).set(q.id, q)),
+          onWbSegment: (seg) => {
+            let stroke = wbStrokesRef.current.find((s) => s.id === seg.id);
+            if (!stroke) {
+              stroke = {
+                id: seg.id,
+                color: seg.color,
+                size: seg.size,
+                erase: seg.erase,
+                points: [],
+              };
+              wbStrokesRef.current.push(stroke);
+            }
+            if (Array.isArray(seg.points)) stroke.points.push(...seg.points);
+            wbDirtyRef.current = true;
+          },
+          onWbClear: () => {
+            wbStrokesRef.current = [];
+            wbDirtyRef.current = true;
+          },
           onHostChanged: ({ hostPeerId }) => {
             const myId = clientRef.current?.socket.id;
             setAmHost(hostPeerId === myId);
@@ -887,6 +913,7 @@ export default function RoomPage({
           startedAt,
           polls: initialPolls,
           questions: initialQuestions,
+          whiteboard: initialWhiteboard,
           waitingList,
         } = await client.join(roomId, name, joinPin);
         // join() resolves once we're actually in (lobby cleared).
@@ -906,6 +933,10 @@ export default function RoomPage({
           setPolls(new Map(initialPolls.map((p: any) => [p.id, p])));
         if (initialQuestions?.length)
           setQuestions(new Map(initialQuestions.map((q: any) => [q.id, q])));
+        wbStrokesRef.current = Array.isArray(initialWhiteboard)
+          ? initialWhiteboard
+          : [];
+        wbDirtyRef.current = true;
         // Moderators get desktop notifications for lobby requests.
         if (
           isHost &&
@@ -1068,6 +1099,16 @@ export default function RoomPage({
   }
   function answerQuestion(qId: string) {
     clientRef.current?.answerQuestion(qId);
+  }
+
+  // Whiteboard: broadcast our local drawing; clear resets for everyone.
+  function wbSendSegment(seg: any) {
+    clientRef.current?.wbSegment(seg);
+  }
+  function wbClear() {
+    wbStrokesRef.current = [];
+    wbDirtyRef.current = true;
+    clientRef.current?.wbClear();
   }
 
   // Poll our send-transport stats and report a coarse connection quality.
@@ -2302,6 +2343,12 @@ export default function RoomPage({
               active={pollsOpen}
             />
             <IconButton
+              icon={PenTool}
+              label="Board"
+              onClick={() => setWbOpen(true)}
+              active={wbOpen}
+            />
+            <IconButton
               icon={Users}
               label="People"
               onClick={() => {
@@ -2420,6 +2467,15 @@ export default function RoomPage({
                     }}
                   />
                   <MenuItem
+                    icon={PenTool}
+                    label="Whiteboard"
+                    active={wbOpen}
+                    onClick={() => {
+                      setWbOpen(true);
+                      setMoreOpen(false);
+                    }}
+                  />
+                  <MenuItem
                     icon={LayoutGrid}
                     label="Settings"
                     active={settingsOpen}
@@ -2469,6 +2525,15 @@ export default function RoomPage({
         }}
         captionLang={captionLang}
         onCaptionLang={selectCaptionLang}
+      />
+
+      <Whiteboard
+        open={wbOpen}
+        onClose={() => setWbOpen(false)}
+        strokesRef={wbStrokesRef}
+        dirtyRef={wbDirtyRef}
+        onSegment={wbSendSegment}
+        onClear={wbClear}
       />
     </main>
   );

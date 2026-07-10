@@ -97,6 +97,8 @@ export interface RoomCallbacks {
   onPollUpdated?: (poll: any) => void;
   onQuestionAdded?: (q: any) => void;
   onQuestionUpdated?: (q: any) => void;
+  onWbSegment?: (seg: any) => void;
+  onWbClear?: () => void;
 }
 
 export class RoomClient {
@@ -186,6 +188,7 @@ export class RoomClient {
       startedAt,
       polls,
       questions,
+      whiteboard,
       waitingList,
     } = res;
 
@@ -214,6 +217,7 @@ export class RoomClient {
       startedAt: (startedAt || 0) as number,
       polls: (polls || []) as any[],
       questions: (questions || []) as any[],
+      whiteboard: (whiteboard || []) as any[],
       waitingList: (waitingList || []) as Array<{
         peerId: string;
         username: string;
@@ -328,6 +332,15 @@ export class RoomClient {
     this.socket.on('questionUpdated', (q) =>
       this.callbacks.onQuestionUpdated?.(q)
     );
+    this.socket.on('wbSegment', (seg) => this.callbacks.onWbSegment?.(seg));
+    this.socket.on('wbClear', () => this.callbacks.onWbClear?.());
+  }
+
+  wbSegment(seg: any) {
+    this.socket.emit('wbSegment', seg);
+  }
+  wbClear() {
+    this.socket.emit('wbClear');
   }
 
   sendCaption(text: string, isFinal: boolean) {

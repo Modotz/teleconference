@@ -46,6 +46,7 @@ export function registerSignaling(io) {
   // Polls & Q&A per room.
   const roomPolls = new Map(); // roomId -> Array<{ id, question, options:[{text,voters:Set}], closed }>
   const roomQuestions = new Map(); // roomId -> Array<{ id, text, authorName, upvoters:Set, answered }>
+  const roomWhiteboard = new Map(); // roomId -> Array<{ id, color, size, erase, points:[{x,y}] }>
   const genId = () => Math.random().toString(36).slice(2, 10);
   const serializePoll = (p) => ({
     id: p.id,
@@ -300,6 +301,7 @@ export function registerSignaling(io) {
           startedAt: roomStart.get(roomId) || Date.now(),
           polls: (roomPolls.get(roomId) || []).map(serializePoll),
           questions: (roomQuestions.get(roomId) || []).map(serializeQuestion),
+          whiteboard: roomWhiteboard.get(roomId) || [],
           waitingList,
         };
       }
@@ -623,6 +625,42 @@ export function registerSignaling(io) {
       cb?.({ ok: true });
     });
 
+    // ---- Shared whiteboard ----
+    socket.on('wbSegment', (seg) => {
+      if (!getPeer(currentRoomId, socket.id) || !seg?.id) return;
+      let list = roomWhiteboard.get(currentRoomId);
+      if (!list) {
+        list = [];
+        roomWhiteboard.set(currentRoomId, list);
+      }
+      let stroke = list.find((s) => s.id === seg.id);
+      const pts = Array.isArray(seg.points) ? seg.points : [];
+      if (!stroke) {
+        stroke = {
+          id: seg.id,
+          color: String(seg.color || '#ffffff'),
+          size: Number(seg.size) || 4,
+          erase: !!seg.erase,
+          points: [],
+        };
+        list.push(stroke);
+        // Safety cap so memory can't grow unbounded.
+        if (list.length > 5000) list.splice(0, list.length - 5000);
+      }
+      for (const p of pts) {
+        if (typeof p?.x === 'number' && typeof p?.y === 'number') {
+          stroke.points.push({ x: p.x, y: p.y });
+        }
+      }
+      socket.to(currentRoomId).emit('wbSegment', seg);
+    });
+
+    socket.on('wbClear', () => {
+      if (!getPeer(currentRoomId, socket.id)) return;
+      roomWhiteboard.set(currentRoomId, []);
+      io.to(currentRoomId).emit('wbClear');
+    });
+
     // Self-reported connection quality so peers can show a signal indicator.
     socket.on('quality', ({ level }) => {
       if (!getPeer(currentRoomId, socket.id)) return;
@@ -799,6 +837,7 @@ export function registerSignaling(io) {
       roomStart.delete(roomId);
       roomPolls.delete(roomId);
       roomQuestions.delete(roomId);
+      roomWhiteboard.delete(roomId);
       // Mark inactive so nobody can rejoin.
       try {
         await prisma.room.update({
