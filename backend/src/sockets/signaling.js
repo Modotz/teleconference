@@ -47,6 +47,10 @@ export function registerSignaling(io) {
   const roomPolls = new Map(); // roomId -> Array<{ id, question, options:[{text,voters:Set}], closed }>
   const roomQuestions = new Map(); // roomId -> Array<{ id, text, authorName, upvoters:Set, answered }>
   const roomWhiteboard = new Map(); // roomId -> Array<{ id, color, size, erase, points:[{x,y}] }>
+  // Breakout rooms. mainRoomId -> { open, rooms:[{boId,name}], assignments: Map<userId,{boId,name}> }
+  const breakouts = new Map();
+  const isBreakoutId = (id) => typeof id === 'string' && id.includes('::bo::');
+  const mainOf = (boId) => String(boId).split('::bo::')[0];
   const genId = () => Math.random().toString(36).slice(2, 10);
   const serializePoll = (p) => ({
     id: p.id,
@@ -139,6 +143,32 @@ export function registerSignaling(io) {
 
       socket.on('joinRoom', async ({ roomId, displayName, pin }, callback) => {
         try {
+          // Breakout room: authorize via the parent room, skip lobby/PIN.
+          if (isBreakoutId(roomId)) {
+            const mainId = mainOf(roomId);
+            const dbMain = await prisma.room.findUnique({
+              where: { id: mainId },
+            });
+            if (!dbMain || !dbMain.isActive) {
+              return callback({ error: 'Room not found or inactive' });
+            }
+            const st = breakouts.get(mainId);
+            if (!st || !st.open) return callback({ error: 'breakout-closed' });
+            const isHostUser =
+              (roomHost.get(mainId) || dbMain.ownerId) === user.id;
+            const assigned = st.assignments.get(user.id);
+            if (!isHostUser && assigned?.boId !== roomId) {
+              return callback({ error: 'breakout-closed' });
+            }
+            const boName =
+              st.rooms.find((r) => r.boId === roomId)?.name || 'Breakout';
+            const payload = await performJoin(roomId, isHostUser, displayName);
+            return callback({
+              ...payload,
+              breakout: { name: boName, mainRoomId: mainId },
+            });
+          }
+
           const dbRoom = await prisma.room.findUnique({ where: { id: roomId } });
           if (!dbRoom || !dbRoom.isActive) {
             return callback({ error: 'Room not found or inactive' });
@@ -177,7 +207,15 @@ export function registerSignaling(io) {
             }
           }
 
-          callback(await performJoin(roomId, isHost, displayName));
+          {
+            const payload = await performJoin(roomId, isHost, displayName);
+            const st = breakouts.get(roomId);
+            callback({
+              ...payload,
+              breakoutOpen: !!(st && st.open),
+              breakoutRooms: st?.rooms || [],
+            });
+          }
         } catch (err) {
           console.error('joinRoom error', err);
           callback({ error: err.message });
@@ -661,6 +699,65 @@ export function registerSignaling(io) {
       io.to(currentRoomId).emit('wbClear');
     });
 
+    // ---- Breakout rooms ----
+    socket.on('openBreakouts', ({ count }, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const mainId = isBreakoutId(currentRoomId)
+        ? mainOf(currentRoomId)
+        : currentRoomId;
+      const room = getRoom(mainId);
+      if (!room) return cb?.({ error: 'Not in room' });
+      const n = Math.max(2, Math.min(10, Number(count) || 2));
+      const rooms = Array.from({ length: n }, (_, i) => ({
+        boId: `${mainId}::bo::${i}`,
+        name: `Breakout ${i + 1}`,
+      }));
+      // Round-robin assign everyone except the acting host.
+      const assignments = new Map();
+      let i = 0;
+      room.peers.forEach((p) => {
+        if (p.id === socket.id) return;
+        const bo = rooms[i % n];
+        assignments.set(p.userId, { boId: bo.boId, name: bo.name });
+        i += 1;
+      });
+      breakouts.set(mainId, { open: true, rooms, assignments });
+      io.to(mainId).emit('breakoutOpened', {
+        rooms,
+        assignments: Object.fromEntries([...assignments.entries()]),
+      });
+      cb?.({ ok: true });
+    });
+
+    socket.on('closeBreakouts', (_d, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const mainId = isBreakoutId(currentRoomId)
+        ? mainOf(currentRoomId)
+        : currentRoomId;
+      const st = breakouts.get(mainId);
+      if (st) {
+        st.rooms.forEach((r) =>
+          io.to(r.boId).emit('breakoutClosed', { returnTo: mainId })
+        );
+        breakouts.delete(mainId);
+      }
+      io.to(mainId).emit('breakoutClosed', { returnTo: mainId });
+      cb?.({ ok: true });
+    });
+
+    socket.on('broadcastBreakout', ({ text }, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const mainId = isBreakoutId(currentRoomId)
+        ? mainOf(currentRoomId)
+        : currentRoomId;
+      const st = breakouts.get(mainId);
+      if (st && text) {
+        const msg = String(text).slice(0, 300);
+        st.rooms.forEach((r) => io.to(r.boId).emit('breakoutMessage', { text: msg }));
+      }
+      cb?.({ ok: true });
+    });
+
     // Self-reported connection quality so peers can show a signal indicator.
     socket.on('quality', ({ level }) => {
       if (!getPeer(currentRoomId, socket.id)) return;
@@ -820,6 +917,11 @@ export function registerSignaling(io) {
       const roomId = currentRoomId;
       // Tell everyone the meeting is over so they redirect out cleanly.
       io.to(roomId).emit('meetingEnded');
+      // Also end any open breakout rooms.
+      breakouts.get(roomId)?.rooms.forEach((r) => {
+        io.to(r.boId).emit('meetingEnded');
+      });
+      breakouts.delete(roomId);
       // Also boot anyone still waiting in the lobby (they aren't in the room).
       const w = waiting.get(roomId);
       w?.forEach((_info, sid) => {

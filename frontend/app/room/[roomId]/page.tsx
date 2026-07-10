@@ -88,6 +88,7 @@ export default function RoomPage({
 }) {
   const { roomId } = use(params);
   const router = useRouter();
+  const isBreakout = roomId.includes('::bo::');
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -210,6 +211,18 @@ export default function RoomPage({
   const [wbOpen, setWbOpen] = useState(false);
   const wbStrokesRef = useRef<Stroke[]>([]);
   const wbDirtyRef = useRef(true);
+
+  // Breakout rooms.
+  const [breakoutInfo, setBreakoutInfo] = useState<{
+    name: string;
+    mainRoomId: string;
+  } | null>(null);
+  const [breakoutOpen, setBreakoutOpen] = useState(false);
+  const [breakoutRooms, setBreakoutRooms] = useState<
+    { boId: string; name: string }[]
+  >([]);
+  const [breakoutMsg, setBreakoutMsg] = useState<string | null>(null);
+  const [breakoutBcast, setBreakoutBcast] = useState('');
   const [captionLang, setCaptionLang] = useState('en-US');
 
   function selectCaptionLang(lang: string) {
@@ -285,6 +298,35 @@ export default function RoomPage({
     setMe(user);
     setDisplayName((prev) => prev || user.username);
 
+    // Reset room-scoped state (this effect re-runs when moving between the main
+    // room and a breakout without a full remount).
+    setRemotes(new Map());
+    setMessages([]);
+    setRaisedHands(new Set());
+    setRoster(new Map());
+    setPeerMic(new Map());
+    setPeerCam(new Map());
+    setActiveSpeakerId(null);
+    setPolls(new Map());
+    setQuestions(new Map());
+    setMyVotes(new Map());
+    setMyUpvotes(new Set());
+    setCaptions(new Map());
+    setWaitingPeers(new Map());
+    wbStrokesRef.current = [];
+    wbDirtyRef.current = true;
+    setLocalScreenStream(null);
+    setSharingScreen(false);
+    setBreakoutMsg(null);
+    setChatOpen(false);
+    setParticipantsOpen(false);
+    setPollsOpen(false);
+    setWbOpen(false);
+    setPrejoin(true);
+    setCheckedOwner(false);
+    setLobby(false);
+    setError('');
+
     // Restore saved device choices.
     const savedMic = localStorage.getItem('dev:mic') || '';
     const savedCam = localStorage.getItem('dev:cam') || '';
@@ -320,6 +362,13 @@ export default function RoomPage({
         setMicId(stream.getAudioTracks()[0]?.getSettings().deviceId || '');
         setCamId(stream.getVideoTracks()[0]?.getSettings().deviceId || '');
         refreshDevices();
+
+        // Breakout rooms: no lobby/pre-join — join straight in.
+        if (isBreakout) {
+          setPrejoin(false);
+          handleJoin();
+          return;
+        }
 
         // The host (room owner) skips the pre-join screen and enters directly.
         try {
@@ -743,6 +792,26 @@ export default function RoomPage({
             wbStrokesRef.current = [];
             wbDirtyRef.current = true;
           },
+          onBreakoutOpened: ({ rooms, assignments }) => {
+            setBreakoutOpen(true);
+            setBreakoutRooms(rooms);
+            const mine = assignments[user.id];
+            if (mine?.boId && !isBreakout) {
+              router.push(`/room/${encodeURIComponent(mine.boId)}`);
+            }
+          },
+          onBreakoutClosed: ({ returnTo }) => {
+            if (isBreakout) {
+              router.push(`/room/${encodeURIComponent(returnTo)}`);
+            } else {
+              setBreakoutOpen(false);
+              setBreakoutRooms([]);
+            }
+          },
+          onBreakoutMessage: ({ text }) => {
+            setBreakoutMsg(text);
+            setTimeout(() => setBreakoutMsg(null), 8000);
+          },
           onHostChanged: ({ hostPeerId }) => {
             const myId = clientRef.current?.socket.id;
             setAmHost(hostPeerId === myId);
@@ -914,6 +983,9 @@ export default function RoomPage({
           polls: initialPolls,
           questions: initialQuestions,
           whiteboard: initialWhiteboard,
+          breakout,
+          breakoutOpen: boOpen,
+          breakoutRooms: boRooms,
           waitingList,
         } = await client.join(roomId, name, joinPin);
         // join() resolves once we're actually in (lobby cleared).
@@ -937,6 +1009,9 @@ export default function RoomPage({
           ? initialWhiteboard
           : [];
         wbDirtyRef.current = true;
+        setBreakoutInfo(breakout || null);
+        setBreakoutOpen(!!boOpen);
+        setBreakoutRooms(boRooms || []);
         // Moderators get desktop notifications for lobby requests.
         if (
           isHost &&
@@ -999,6 +1074,11 @@ export default function RoomPage({
         if (err?.message === 'pin') {
           setPinError('This meeting requires a PIN. Please enter it to join.');
           setPrejoin(true);
+          return;
+        }
+        if (err?.message === 'breakout-closed') {
+          // Breakout ended (or we're not assigned) → back to the main room.
+          router.replace(`/room/${encodeURIComponent(roomId.split('::bo::')[0])}`);
           return;
         }
         console.error(err);
@@ -1099,6 +1179,22 @@ export default function RoomPage({
   }
   function answerQuestion(qId: string) {
     clientRef.current?.answerQuestion(qId);
+  }
+
+  // Breakout rooms.
+  function openBreakouts() {
+    const c = window.prompt('Number of breakout rooms (2–10)?', '2');
+    if (c === null) return;
+    const n = parseInt(c, 10);
+    if (n >= 2 && n <= 10) clientRef.current?.openBreakouts(n);
+    else setError('Enter a number between 2 and 10');
+  }
+  function joinBreakout(boId: string) {
+    router.push(`/room/${encodeURIComponent(boId)}`);
+  }
+  function returnToMain() {
+    if (breakoutInfo)
+      router.push(`/room/${encodeURIComponent(breakoutInfo.mainRoomId)}`);
   }
 
   // Whiteboard: broadcast our local drawing; clear resets for everyone.
@@ -1768,6 +1864,29 @@ export default function RoomPage({
         </div>
       )}
 
+      {/* Breakout banner */}
+      {isBreakout && breakoutInfo && (
+        <div className="bg-amber-600/20 text-amber-200 px-4 py-2 text-sm shrink-0 flex items-center justify-between gap-3">
+          <span className="truncate">
+            You are in <b>{breakoutInfo.name}</b>
+          </span>
+          <button
+            onClick={returnToMain}
+            className="shrink-0 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-medium"
+          >
+            Return to main room
+          </button>
+        </div>
+      )}
+
+      {/* Broadcast message from host to breakout rooms */}
+      {breakoutMsg && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm shadow-2xl">
+          <span className="text-amber-300 font-medium">Host: </span>
+          {breakoutMsg}
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden relative">
         {/* Video area */}
         <section className="flex-1 p-2 sm:p-4 overflow-y-auto">
@@ -2128,6 +2247,67 @@ export default function RoomPage({
                       ? 'PIN active — guests with the PIN skip the lobby. Clear + Save to disable.'
                       : 'Set a PIN to let guests join directly (bypasses the lobby).'}
                   </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Breakout rooms (moderators, from the main room) */}
+          {isModerator && !isBreakout && (
+            <div className="px-3 py-2 border-b border-slate-800 space-y-2">
+              {!breakoutOpen ? (
+                <button
+                  onClick={openBreakouts}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm bg-slate-800 hover:bg-slate-700 rounded"
+                >
+                  <Users className="w-4 h-4" /> Open breakout rooms
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+                    Breakouts open ({breakoutRooms.length})
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {breakoutRooms.map((r) => (
+                      <button
+                        key={r.boId}
+                        onClick={() => joinBreakout(r.boId)}
+                        className="px-2 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 rounded"
+                      >
+                        {r.name}
+                      </button>
+                    ))}
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const t = breakoutBcast.trim();
+                      if (t) {
+                        clientRef.current?.broadcastBreakout(t);
+                        setBreakoutBcast('');
+                      }
+                    }}
+                    className="flex gap-1"
+                  >
+                    <input
+                      value={breakoutBcast}
+                      onChange={(e) => setBreakoutBcast(e.target.value)}
+                      placeholder="Message all breakouts…"
+                      className="flex-1 min-w-0 px-2 py-1.5 bg-slate-800 rounded text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      className="px-2 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
+                    >
+                      Send
+                    </button>
+                  </form>
+                  <button
+                    onClick={() => clientRef.current?.closeBreakouts()}
+                    className="w-full px-3 py-2 text-sm bg-amber-600/30 text-amber-300 hover:bg-amber-600/40 rounded"
+                  >
+                    Close all breakouts
+                  </button>
                 </div>
               )}
             </div>

@@ -99,6 +99,12 @@ export interface RoomCallbacks {
   onQuestionUpdated?: (q: any) => void;
   onWbSegment?: (seg: any) => void;
   onWbClear?: () => void;
+  onBreakoutOpened?: (data: {
+    rooms: { boId: string; name: string }[];
+    assignments: Record<string, { boId: string; name: string }>;
+  }) => void;
+  onBreakoutClosed?: (data: { returnTo: string }) => void;
+  onBreakoutMessage?: (data: { text: string }) => void;
 }
 
 export class RoomClient {
@@ -189,6 +195,9 @@ export class RoomClient {
       polls,
       questions,
       whiteboard,
+      breakout,
+      breakoutOpen,
+      breakoutRooms,
       waitingList,
     } = res;
 
@@ -218,6 +227,9 @@ export class RoomClient {
       polls: (polls || []) as any[],
       questions: (questions || []) as any[],
       whiteboard: (whiteboard || []) as any[],
+      breakout: (breakout || null) as { name: string; mainRoomId: string } | null,
+      breakoutOpen: !!breakoutOpen,
+      breakoutRooms: (breakoutRooms || []) as { boId: string; name: string }[],
       waitingList: (waitingList || []) as Array<{
         peerId: string;
         username: string;
@@ -334,6 +346,15 @@ export class RoomClient {
     );
     this.socket.on('wbSegment', (seg) => this.callbacks.onWbSegment?.(seg));
     this.socket.on('wbClear', () => this.callbacks.onWbClear?.());
+    this.socket.on('breakoutOpened', (d) =>
+      this.callbacks.onBreakoutOpened?.(d)
+    );
+    this.socket.on('breakoutClosed', (d) =>
+      this.callbacks.onBreakoutClosed?.(d)
+    );
+    this.socket.on('breakoutMessage', (d) =>
+      this.callbacks.onBreakoutMessage?.(d)
+    );
   }
 
   wbSegment(seg: any) {
@@ -341,6 +362,16 @@ export class RoomClient {
   }
   wbClear() {
     this.socket.emit('wbClear');
+  }
+
+  openBreakouts(count: number) {
+    this.socket.emit('openBreakouts', { count });
+  }
+  closeBreakouts() {
+    this.socket.emit('closeBreakouts');
+  }
+  broadcastBreakout(text: string) {
+    this.socket.emit('broadcastBreakout', { text });
   }
 
   sendCaption(text: string, isFinal: boolean) {
