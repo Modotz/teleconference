@@ -35,6 +35,7 @@ import {
   ShieldCheck,
   SwitchCamera,
   Captions,
+  ClipboardList,
   MicOff as MicOffIcon,
   Video as VideoIcon,
   VideoOff as VideoOffIcon,
@@ -49,6 +50,7 @@ import VideoTile from '@/components/VideoTile';
 import IconButton from '@/components/IconButton';
 import ChatMessage from '@/components/ChatMessage';
 import LayoutSettingsPanel from '@/components/LayoutSettingsPanel';
+import PollsPanel from '@/components/PollsPanel';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { useVirtualBackground } from '@/hooks/useVirtualBackground';
@@ -194,6 +196,13 @@ export default function RoomPage({
   const captionsOnRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const lastInterimRef = useRef(0);
+
+  // Polls & Q&A.
+  const [pollsOpen, setPollsOpen] = useState(false);
+  const [polls, setPolls] = useState<Map<string, any>>(new Map());
+  const [questions, setQuestions] = useState<Map<string, any>>(new Map());
+  const [myVotes, setMyVotes] = useState<Map<string, number>>(new Map());
+  const [myUpvotes, setMyUpvotes] = useState<Set<string>>(new Set());
   const [captionLang, setCaptionLang] = useState('en-US');
 
   function selectCaptionLang(lang: string) {
@@ -702,6 +711,12 @@ export default function RoomPage({
               new Map(prev).set(peerId, { name: username, text, ts: Date.now() })
             );
           },
+          onPollAdded: (p) => setPolls((prev) => new Map(prev).set(p.id, p)),
+          onPollUpdated: (p) => setPolls((prev) => new Map(prev).set(p.id, p)),
+          onQuestionAdded: (q) =>
+            setQuestions((prev) => new Map(prev).set(q.id, q)),
+          onQuestionUpdated: (q) =>
+            setQuestions((prev) => new Map(prev).set(q.id, q)),
           onHostChanged: ({ hostPeerId }) => {
             const myId = clientRef.current?.socket.id;
             setAmHost(hostPeerId === myId);
@@ -870,6 +885,8 @@ export default function RoomPage({
           hasPin: hasPinState,
           pin: pinState,
           startedAt,
+          polls: initialPolls,
+          questions: initialQuestions,
           waitingList,
         } = await client.join(roomId, name, joinPin);
         // join() resolves once we're actually in (lobby cleared).
@@ -885,6 +902,10 @@ export default function RoomPage({
         setPinDraft(pinState || '');
         setMeetingStart(startedAt || Date.now());
         setPinError('');
+        if (initialPolls?.length)
+          setPolls(new Map(initialPolls.map((p: any) => [p.id, p])));
+        if (initialQuestions?.length)
+          setQuestions(new Map(initialQuestions.map((q: any) => [q.id, q])));
         // Moderators get desktop notifications for lobby requests.
         if (
           isHost &&
@@ -1020,6 +1041,33 @@ export default function RoomPage({
 
   function toggleLock() {
     clientRef.current?.setLock(!locked);
+  }
+
+  // Polls & Q&A actions.
+  function createPoll(question: string, options: string[]) {
+    clientRef.current?.createPoll(question, options);
+  }
+  function votePoll(pollId: string, idx: number) {
+    clientRef.current?.votePoll(pollId, idx);
+    setMyVotes((prev) => new Map(prev).set(pollId, idx));
+  }
+  function closePoll(pollId: string) {
+    clientRef.current?.closePoll(pollId);
+  }
+  function askQuestion(text: string) {
+    clientRef.current?.askQuestion(text);
+  }
+  function upvoteQuestion(qId: string) {
+    clientRef.current?.upvoteQuestion(qId);
+    setMyUpvotes((prev) => {
+      const next = new Set(prev);
+      if (next.has(qId)) next.delete(qId);
+      else next.add(qId);
+      return next;
+    });
+  }
+  function answerQuestion(qId: string) {
+    clientRef.current?.answerQuestion(qId);
   }
 
   // Poll our send-transport stats and report a coarse connection quality.
@@ -2160,6 +2208,22 @@ export default function RoomPage({
             aria-hidden
           />
         )}
+
+        <PollsPanel
+          open={pollsOpen}
+          onClose={() => setPollsOpen(false)}
+          isModerator={isModerator}
+          polls={Array.from(polls.values())}
+          questions={Array.from(questions.values())}
+          myVotes={myVotes}
+          myUpvotes={myUpvotes}
+          onCreatePoll={createPoll}
+          onVote={votePoll}
+          onClosePoll={closePoll}
+          onAsk={askQuestion}
+          onUpvote={upvoteQuestion}
+          onAnswer={answerQuestion}
+        />
       </div>
 
       {/* Footer controls */}
@@ -2205,6 +2269,7 @@ export default function RoomPage({
                 onClick={() => {
                   setChatOpen((v) => !v);
                   setParticipantsOpen(false);
+                  setPollsOpen(false);
                 }}
                 active={chatOpen}
               />
@@ -2227,11 +2292,22 @@ export default function RoomPage({
               active={captionsOn}
             />
             <IconButton
+              icon={ClipboardList}
+              label="Polls"
+              onClick={() => {
+                setPollsOpen((v) => !v);
+                setChatOpen(false);
+                setParticipantsOpen(false);
+              }}
+              active={pollsOpen}
+            />
+            <IconButton
               icon={Users}
               label="People"
               onClick={() => {
                 setParticipantsOpen((v) => !v);
                 setChatOpen(false);
+                setPollsOpen(false);
               }}
               active={participantsOpen}
             />
@@ -2328,6 +2404,18 @@ export default function RoomPage({
                     onClick={() => {
                       setParticipantsOpen(true);
                       setChatOpen(false);
+                      setPollsOpen(false);
+                      setMoreOpen(false);
+                    }}
+                  />
+                  <MenuItem
+                    icon={ClipboardList}
+                    label="Polls & Q&A"
+                    active={pollsOpen}
+                    onClick={() => {
+                      setPollsOpen(true);
+                      setChatOpen(false);
+                      setParticipantsOpen(false);
                       setMoreOpen(false);
                     }}
                   />

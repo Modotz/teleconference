@@ -43,6 +43,23 @@ export function registerSignaling(io) {
   const roomPins = new Map();
   // When the meeting started (first join). roomId -> epoch ms.
   const roomStart = new Map();
+  // Polls & Q&A per room.
+  const roomPolls = new Map(); // roomId -> Array<{ id, question, options:[{text,voters:Set}], closed }>
+  const roomQuestions = new Map(); // roomId -> Array<{ id, text, authorName, upvoters:Set, answered }>
+  const genId = () => Math.random().toString(36).slice(2, 10);
+  const serializePoll = (p) => ({
+    id: p.id,
+    question: p.question,
+    closed: p.closed,
+    options: p.options.map((o) => ({ text: o.text, count: o.voters.size })),
+  });
+  const serializeQuestion = (q) => ({
+    id: q.id,
+    text: q.text,
+    authorName: q.authorName,
+    upvotes: q.upvoters.size,
+    answered: q.answered,
+  });
 
   // Co-host role remembered by userId so it survives a reconnect. roomId -> Set.
   const coHostUsers = new Map();
@@ -281,6 +298,8 @@ export function registerSignaling(io) {
           hasPin: !!roomPins.get(roomId),
           pin: isHost ? roomPins.get(roomId) || '' : undefined,
           startedAt: roomStart.get(roomId) || Date.now(),
+          polls: (roomPolls.get(roomId) || []).map(serializePoll),
+          questions: (roomQuestions.get(roomId) || []).map(serializeQuestion),
           waitingList,
         };
       }
@@ -510,6 +529,100 @@ export function registerSignaling(io) {
       });
     });
 
+    // ---- Polls & Q&A ----
+    const canModerate = () => {
+      const p = getPeer(currentRoomId, socket.id);
+      return !!(p && (p.isHost || p.isCoHost));
+    };
+
+    socket.on('createPoll', ({ question, options }, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const opts = (Array.isArray(options) ? options : [])
+        .map((t) => String(t).trim())
+        .filter(Boolean)
+        .slice(0, 6);
+      if (!question || opts.length < 2) {
+        return cb?.({ error: 'Need a question and at least 2 options' });
+      }
+      let list = roomPolls.get(currentRoomId);
+      if (!list) {
+        list = [];
+        roomPolls.set(currentRoomId, list);
+      }
+      const poll = {
+        id: genId(),
+        question: String(question).slice(0, 200),
+        options: opts.map((t) => ({ text: t.slice(0, 100), voters: new Set() })),
+        closed: false,
+      };
+      list.push(poll);
+      io.to(currentRoomId).emit('pollAdded', serializePoll(poll));
+      cb?.({ ok: true });
+    });
+
+    socket.on('votePoll', ({ pollId, optionIndex }) => {
+      const peer = getPeer(currentRoomId, socket.id);
+      if (!peer) return;
+      const poll = roomPolls.get(currentRoomId)?.find((p) => p.id === pollId);
+      if (!poll || poll.closed) return;
+      const idx = Number(optionIndex);
+      if (!(idx >= 0 && idx < poll.options.length)) return;
+      poll.options.forEach((o, i) => {
+        if (i === idx) o.voters.add(peer.userId);
+        else o.voters.delete(peer.userId);
+      });
+      io.to(currentRoomId).emit('pollUpdated', serializePoll(poll));
+    });
+
+    socket.on('closePoll', ({ pollId }, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const poll = roomPolls.get(currentRoomId)?.find((p) => p.id === pollId);
+      if (poll) {
+        poll.closed = true;
+        io.to(currentRoomId).emit('pollUpdated', serializePoll(poll));
+      }
+      cb?.({ ok: true });
+    });
+
+    socket.on('askQuestion', ({ text }) => {
+      const peer = getPeer(currentRoomId, socket.id);
+      if (!peer || !text) return;
+      let list = roomQuestions.get(currentRoomId);
+      if (!list) {
+        list = [];
+        roomQuestions.set(currentRoomId, list);
+      }
+      const q = {
+        id: genId(),
+        text: String(text).slice(0, 300),
+        authorName: peer.username,
+        upvoters: new Set(),
+        answered: false,
+      };
+      list.push(q);
+      io.to(currentRoomId).emit('questionAdded', serializeQuestion(q));
+    });
+
+    socket.on('upvoteQuestion', ({ questionId }) => {
+      const peer = getPeer(currentRoomId, socket.id);
+      if (!peer) return;
+      const q = roomQuestions.get(currentRoomId)?.find((x) => x.id === questionId);
+      if (!q) return;
+      if (q.upvoters.has(peer.userId)) q.upvoters.delete(peer.userId);
+      else q.upvoters.add(peer.userId);
+      io.to(currentRoomId).emit('questionUpdated', serializeQuestion(q));
+    });
+
+    socket.on('answerQuestion', ({ questionId }, cb) => {
+      if (!canModerate()) return cb?.({ error: 'Not allowed' });
+      const q = roomQuestions.get(currentRoomId)?.find((x) => x.id === questionId);
+      if (q) {
+        q.answered = !q.answered;
+        io.to(currentRoomId).emit('questionUpdated', serializeQuestion(q));
+      }
+      cb?.({ ok: true });
+    });
+
     // Self-reported connection quality so peers can show a signal indicator.
     socket.on('quality', ({ level }) => {
       if (!getPeer(currentRoomId, socket.id)) return;
@@ -684,6 +797,8 @@ export function registerSignaling(io) {
       roomHost.delete(roomId);
       roomPins.delete(roomId);
       roomStart.delete(roomId);
+      roomPolls.delete(roomId);
+      roomQuestions.delete(roomId);
       // Mark inactive so nobody can rejoin.
       try {
         await prisma.room.update({

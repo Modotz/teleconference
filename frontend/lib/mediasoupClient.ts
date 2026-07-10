@@ -93,6 +93,10 @@ export interface RoomCallbacks {
     text: string;
     isFinal: boolean;
   }) => void;
+  onPollAdded?: (poll: any) => void;
+  onPollUpdated?: (poll: any) => void;
+  onQuestionAdded?: (q: any) => void;
+  onQuestionUpdated?: (q: any) => void;
 }
 
 export class RoomClient {
@@ -180,6 +184,8 @@ export class RoomClient {
       hasPin,
       pin: hostPin,
       startedAt,
+      polls,
+      questions,
       waitingList,
     } = res;
 
@@ -206,6 +212,8 @@ export class RoomClient {
       hasPin: !!hasPin,
       pin: (hostPin || '') as string,
       startedAt: (startedAt || 0) as number,
+      polls: (polls || []) as any[],
+      questions: (questions || []) as any[],
       waitingList: (waitingList || []) as Array<{
         peerId: string;
         username: string;
@@ -314,10 +322,36 @@ export class RoomClient {
       this.callbacks.onPinState?.(!!hasPin)
     );
     this.socket.on('caption', (c) => this.callbacks.onCaption?.(c));
+    this.socket.on('pollAdded', (p) => this.callbacks.onPollAdded?.(p));
+    this.socket.on('pollUpdated', (p) => this.callbacks.onPollUpdated?.(p));
+    this.socket.on('questionAdded', (q) => this.callbacks.onQuestionAdded?.(q));
+    this.socket.on('questionUpdated', (q) =>
+      this.callbacks.onQuestionUpdated?.(q)
+    );
   }
 
   sendCaption(text: string, isFinal: boolean) {
     this.socket.emit('caption', { text, isFinal });
+  }
+
+  // ---- Polls & Q&A ----
+  createPoll(question: string, options: string[]) {
+    this.socket.emit('createPoll', { question, options });
+  }
+  votePoll(pollId: string, optionIndex: number) {
+    this.socket.emit('votePoll', { pollId, optionIndex });
+  }
+  closePoll(pollId: string) {
+    this.socket.emit('closePoll', { pollId });
+  }
+  askQuestion(text: string) {
+    this.socket.emit('askQuestion', { text });
+  }
+  upvoteQuestion(questionId: string) {
+    this.socket.emit('upvoteQuestion', { questionId });
+  }
+  answerQuestion(questionId: string) {
+    this.socket.emit('answerQuestion', { questionId });
   }
 
   transferHost(peerId: string) {
