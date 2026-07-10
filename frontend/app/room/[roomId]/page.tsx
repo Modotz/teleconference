@@ -318,9 +318,17 @@ export default function RoomPage({
           } else {
             setCheckedOwner(true);
           }
-        } catch {
-          // Couldn't check ownership — fall back to the pre-join screen.
-          if (mounted) setCheckedOwner(true);
+        } catch (e: any) {
+          if (!mounted) return;
+          // Expired / invalid session → clear it and go to login.
+          if (e?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            router.replace('/login');
+            return;
+          }
+          // Other errors — fall back to the pre-join screen.
+          setCheckedOwner(true);
         }
       } catch (err: any) {
         setError(err.message || 'Cannot access camera/microphone');
