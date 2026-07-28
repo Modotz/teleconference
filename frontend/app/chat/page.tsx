@@ -25,6 +25,7 @@ import ChatMessageComponent from '@/components/ChatMessage';
 import NewChatModal from '@/components/NewChatModal';
 import CallOverlay from '@/components/CallOverlay';
 import ConversationInfoPanel from '@/components/ConversationInfoPanel';
+import AppRail from '@/components/AppRail';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -479,25 +480,24 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="h-screen flex bg-slate-950">
+    <div className="h-screen flex bg-slate-950 text-slate-100">
+      {/* Teams-style left rail (hidden on mobile when a chat is open) */}
+      <div className={activeId ? 'hidden md:flex' : 'flex'}>
+        <AppRail active="chat" username={me?.username} />
+      </div>
+
+      <main className="flex-1 flex min-w-0">
       {/* Sidebar */}
       <aside
         className={`${
           activeId ? 'hidden md:flex' : 'flex'
         } w-full md:w-80 lg:w-96 border-r border-slate-800 flex-col`}
       >
-        <header className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-slate-400 hover:text-slate-100"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="font-semibold">Chats</h1>
+        <header className="px-4 h-14 border-b border-slate-800 flex items-center justify-between">
+          <h1 className="font-semibold text-lg">Chat</h1>
           <button
             onClick={() => setNewChatOpen(true)}
-            className="text-slate-400 hover:text-slate-100"
+            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-md"
             aria-label="New chat"
           >
             <Plus className="w-5 h-5" />
@@ -511,7 +511,7 @@ export default function ChatPage() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -611,7 +611,7 @@ export default function ChatPage() {
                       if (typing.length > 0) {
                         const names = typing.map((t) => t.username).join(', ');
                         return (
-                          <span className="text-blue-400">
+                          <span className="text-indigo-400">
                             {names} {typing.length === 1 ? 'is' : 'are'} typing...
                           </span>
                         );
@@ -650,11 +650,11 @@ export default function ChatPage() {
                   >
                     <div
                       className={`max-w-[80%] sm:max-w-[70%] rounded-lg px-3 py-2 ${
-                        isMe ? 'bg-blue-600' : 'bg-slate-800'
+                        isMe ? 'bg-indigo-600' : 'bg-slate-800'
                       }`}
                     >
                       {activeConv.isGroup && !isMe && m.sender && (
-                        <div className="text-xs font-medium text-blue-300 mb-0.5">
+                        <div className="text-xs font-medium text-indigo-300 mb-0.5">
                           {m.sender.username}
                         </div>
                       )}
@@ -763,7 +763,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={sendVoiceMessage}
                   disabled={uploading}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded shrink-0"
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded shrink-0"
                   aria-label="Send voice message"
                 >
                   <Send className="w-4 h-4" />
@@ -807,7 +807,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={() => setEmojiOpen((v) => !v)}
                   className={`p-2 rounded ${
-                    emojiOpen ? 'text-blue-400' : 'text-slate-400 hover:text-slate-100'
+                    emojiOpen ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-100'
                   }`}
                   aria-label="Emoji"
                 >
@@ -835,13 +835,13 @@ export default function ChatPage() {
                   }}
                   rows={1}
                   placeholder="Type a message..."
-                  className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-blue-500 resize-none max-h-32"
+                  className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
                 />
                 {text.trim() || pendingFile ? (
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded shrink-0"
+                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded shrink-0"
                     aria-label="Send"
                   >
                     <Send className="w-4 h-4" />
@@ -850,7 +850,7 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={() => recorder.start()}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded shrink-0"
+                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded shrink-0"
                     aria-label="Record voice message"
                     title="Hold or click to record"
                   >
@@ -924,7 +924,8 @@ export default function ChatPage() {
           setActiveId((curr) => (curr === conversationId ? null : curr));
         }}
       />
-    </main>
+      </main>
+    </div>
   );
 }
 

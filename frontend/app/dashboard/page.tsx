@@ -3,21 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  LogOut,
   Plus,
   Users,
   Video,
-  MessageSquare,
   CalendarClock,
   Link as LinkIcon,
   Check,
   Calendar,
   Mail,
   X,
-  Bell,
-  type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import AppRail from '@/components/AppRail';
 
 interface Room {
   id: string;
@@ -138,12 +135,6 @@ export default function DashboardPage() {
     router.push(`/room/${id}`);
   }
 
-  function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.replace('/login');
-  }
-
   const now = Date.now();
   const { upcoming, instant } = useMemo(() => {
     const upcoming: Room[] = [];
@@ -163,43 +154,18 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rooms]);
 
-  const initial = (me?.username?.[0] || '?').toUpperCase();
-
   return (
     <div className="min-h-screen flex bg-slate-950 text-slate-100">
       {/* Teams-style left rail */}
-      <nav className="w-16 sm:w-[76px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3">
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-900/40">
-          <Video className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex flex-col items-center gap-1 w-full">
-          <RailItem icon={Bell} label="Activity" disabled />
-          <RailItem
-            icon={MessageSquare}
-            label="Chat"
-            onClick={() => router.push('/chat')}
-          />
-          <RailItem icon={Video} label="Meet" active />
-          <RailItem
-            icon={Calendar}
-            label="Calendar"
-            onClick={() =>
-              document
-                .getElementById('upcoming')
-                ?.scrollIntoView({ behavior: 'smooth' })
-            }
-          />
-        </div>
-        <div className="mt-auto flex flex-col items-center gap-1 w-full">
-          <RailItem icon={LogOut} label="Sign out" onClick={logout} />
-          <div
-            title={me?.username}
-            className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-semibold mt-1"
-          >
-            {initial}
-          </div>
-        </div>
-      </nav>
+      <AppRail
+        active="meet"
+        username={me?.username}
+        onCalendar={() =>
+          document
+            .getElementById('upcoming')
+            ?.scrollIntoView({ behavior: 'smooth' })
+        }
+      />
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
@@ -369,41 +335,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function RailItem({
-  icon: Icon,
-  label,
-  active,
-  disabled,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  active?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      className={`relative w-full flex flex-col items-center gap-1 py-2 rounded-lg transition-colors ${
-        active
-          ? 'text-white'
-          : disabled
-          ? 'text-slate-600 cursor-default'
-          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
-      }`}
-    >
-      {active && (
-        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-indigo-500" />
-      )}
-      <Icon className={`w-5 h-5 ${active ? 'text-indigo-400' : ''}`} />
-      <span className="text-[10px] leading-none">{label}</span>
-    </button>
   );
 }
 
