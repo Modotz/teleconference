@@ -14,6 +14,8 @@ import {
   Calendar,
   Mail,
   X,
+  Bell,
+  type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -161,43 +163,80 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rooms]);
 
-  return (
-    <main className="min-h-screen p-4 sm:p-6 md:p-8 max-w-3xl mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold truncate">Dashboard</h1>
-          {me && (
-            <div className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Signed in as {me.username}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => router.push('/chat')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-sm"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat</span>
-          </button>
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
-        </div>
-      </header>
+  const initial = (me?.username?.[0] || '?').toUpperCase();
 
+  return (
+    <div className="min-h-screen flex bg-slate-950 text-slate-100">
+      {/* Teams-style left rail */}
+      <nav className="w-16 sm:w-[76px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3">
+        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-900/40">
+          <Video className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex flex-col items-center gap-1 w-full">
+          <RailItem icon={Bell} label="Activity" disabled />
+          <RailItem
+            icon={MessageSquare}
+            label="Chat"
+            onClick={() => router.push('/chat')}
+          />
+          <RailItem icon={Video} label="Meet" active />
+          <RailItem
+            icon={Calendar}
+            label="Calendar"
+            onClick={() =>
+              document
+                .getElementById('upcoming')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+          />
+        </div>
+        <div className="mt-auto flex flex-col items-center gap-1 w-full">
+          <RailItem icon={LogOut} label="Sign out" onClick={logout} />
+          <div
+            title={me?.username}
+            className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-semibold mt-1"
+          >
+            {initial}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold leading-tight truncate">Meet</h1>
+            {me && (
+              <p className="text-xs text-slate-400 -mt-0.5 truncate">
+                Signed in as {me.username}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setScheduled(false);
+              document
+                .getElementById('meeting-name')
+                ?.focus();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-medium shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">New meeting</span>
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="max-w-3xl mx-auto">
       {/* Create / schedule */}
       <form onSubmit={onCreate} className="bg-slate-800/60 rounded-lg p-4 mb-4 space-y-3">
         <input
+          id="meeting-name"
           type="text"
           placeholder="Meeting / room name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2.5 bg-slate-900 rounded outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full px-3 py-2.5 bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500"
         />
 
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -235,7 +274,7 @@ export default function DashboardPage() {
         <button
           type="submit"
           disabled={creating || !name.trim() || (scheduled && !scheduledAt)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 rounded font-medium disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded font-medium disabled:opacity-50"
         >
           {scheduled ? (
             <>
@@ -274,9 +313,9 @@ export default function DashboardPage() {
 
       {/* Upcoming scheduled meetings */}
       {upcoming.length > 0 && (
-        <section className="mb-6">
+        <section id="upcoming" className="mb-6 scroll-mt-20">
           <h2 className="text-lg font-medium mb-3 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-blue-400" />
+            <Calendar className="w-5 h-5 text-indigo-400" />
             Upcoming meetings
           </h2>
           <ul className="grid gap-3">
@@ -326,7 +365,45 @@ export default function DashboardPage() {
       {inviteRoom && (
         <InviteModal room={inviteRoom} onClose={() => setInviteRoom(null)} />
       )}
-    </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RailItem({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={label}
+      className={`relative w-full flex flex-col items-center gap-1 py-2 rounded-lg transition-colors ${
+        active
+          ? 'text-white'
+          : disabled
+          ? 'text-slate-600 cursor-default'
+          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+      }`}
+    >
+      {active && (
+        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-indigo-500" />
+      )}
+      <Icon className={`w-5 h-5 ${active ? 'text-indigo-400' : ''}`} />
+      <span className="text-[10px] leading-none">{label}</span>
+    </button>
   );
 }
 
