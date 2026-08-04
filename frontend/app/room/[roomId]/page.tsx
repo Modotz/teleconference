@@ -1557,7 +1557,7 @@ export default function RoomPage({
   if (prejoin && !checkedOwner) {
     return (
       <main className="h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-slate-400">
-        <span className="w-6 h-6 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin" />
+        <span className="w-6 h-6 border-2 border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
         <span className="text-sm">Connecting…</span>
       </main>
     );
@@ -1614,7 +1614,7 @@ export default function RoomPage({
             }}
             maxLength={40}
             placeholder="Your name"
-            className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
@@ -1657,7 +1657,7 @@ export default function RoomPage({
               }}
               placeholder="Enter PIN"
               maxLength={10}
-              className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
             />
             {pinError && (
               <p className="text-amber-400 text-xs mt-1">{pinError}</p>
@@ -1682,7 +1682,7 @@ export default function RoomPage({
               <button
                 onClick={handleJoin}
                 disabled={!localStream || joining}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-sm font-medium"
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded text-sm font-medium"
               >
                 {joining ? 'Joining…' : 'Join'}
               </button>
@@ -1697,7 +1697,7 @@ export default function RoomPage({
               </p>
             </div>
             <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
               Waiting for host
             </div>
             <button
@@ -1763,7 +1763,7 @@ export default function RoomPage({
                 key={i}
                 className="max-w-full bg-black/75 text-white text-sm sm:text-base rounded px-3 py-1.5"
               >
-                <span className="text-blue-300 font-medium">{c.name}:</span>{' '}
+                <span className="text-indigo-300 font-medium">{c.name}:</span>{' '}
                 {c.text}
               </div>
             ))}
@@ -1773,7 +1773,7 @@ export default function RoomPage({
       {/* Reconnecting overlay when the network drops */}
       {reconnecting && (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm">
-          <span className="w-8 h-8 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin" />
+          <span className="w-8 h-8 border-2 border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
           <div className="text-slate-200 font-medium">Reconnecting…</div>
           <p className="text-slate-400 text-sm">Check your internet connection</p>
           <button
@@ -1794,7 +1794,7 @@ export default function RoomPage({
             {waitingPeers.size > 1 && (
               <button
                 onClick={() => clientRef.current?.admitAll()}
-                className="text-xs text-blue-400 hover:text-blue-300"
+                className="text-xs text-indigo-400 hover:text-indigo-300"
               >
                 Admit all
               </button>
@@ -1808,7 +1808,7 @@ export default function RoomPage({
                 </span>
                 <button
                   onClick={() => clientRef.current?.admitPeer(peerId)}
-                  className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 rounded"
+                  className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded"
                 >
                   Admit
                 </button>
@@ -2015,7 +2015,7 @@ export default function RoomPage({
               {uploading && (
                 <div className="mt-1.5 h-1 bg-slate-700 rounded overflow-hidden">
                   <div
-                    className="h-full bg-blue-500 transition-all"
+                    className="h-full bg-indigo-500 transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -2077,7 +2077,7 @@ export default function RoomPage({
               aria-label="Emoji"
               title="Emoji"
               className={`p-2 rounded ${
-                emojiOpen ? 'text-blue-400' : 'text-slate-400 hover:text-slate-100'
+                emojiOpen ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               <Smile className="w-5 h-5" />
@@ -2104,13 +2104,13 @@ export default function RoomPage({
                 }
               }}
               rows={1}
-              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-blue-500 resize-none max-h-32"
+              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
             />
             <button
               type="submit"
               disabled={uploading || (!chatInput.trim() && !pendingFile)}
               aria-label="Send message"
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
+              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -2161,7 +2161,7 @@ export default function RoomPage({
                 {waitingPeers.size > 1 && (
                   <button
                     onClick={() => clientRef.current?.admitAll()}
-                    className="text-xs text-blue-400 hover:text-blue-300"
+                    className="text-xs text-indigo-400 hover:text-indigo-300"
                   >
                     Admit all
                   </button>
@@ -2179,7 +2179,7 @@ export default function RoomPage({
                     <span className="min-w-0 flex-1 truncate">{info.username}</span>
                     <button
                       onClick={() => clientRef.current?.admitPeer(peerId)}
-                      className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 rounded"
+                      className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded"
                     >
                       Admit
                     </button>
@@ -2233,7 +2233,7 @@ export default function RoomPage({
                       onChange={(e) => setPinDraft(e.target.value)}
                       placeholder="Meeting PIN (optional)"
                       maxLength={10}
-                      className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                     <button
                       onClick={savePin}
@@ -2293,7 +2293,7 @@ export default function RoomPage({
                       value={breakoutBcast}
                       onChange={(e) => setBreakoutBcast(e.target.value)}
                       placeholder="Message all breakouts…"
-                      className="flex-1 min-w-0 px-2 py-1.5 bg-slate-800 rounded text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 min-w-0 px-2 py-1.5 bg-slate-800 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                     <button
                       type="submit"
@@ -2326,12 +2326,12 @@ export default function RoomPage({
                     if (e.key === 'Enter') saveName();
                     if (e.key === 'Escape') setEditingName(false);
                   }}
-                  className="min-w-0 flex-1 px-2 py-1 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  className="min-w-0 flex-1 px-2 py-1 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <button
                   onClick={saveName}
                   title="Save"
-                  className="p-1.5 rounded bg-blue-600 hover:bg-blue-700 shrink-0"
+                  className="p-1.5 rounded bg-indigo-600 hover:bg-indigo-500 shrink-0"
                 >
                   <Check className="w-4 h-4" />
                 </button>
@@ -2751,7 +2751,7 @@ function PreJoinDevice({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
       >
         {options.length === 0 && <option value="">{label}</option>}
         {options.map((d, i) => (
@@ -2798,7 +2798,7 @@ function ParticipantRow({
       <div className="min-w-0 flex-1 flex items-center gap-1.5">
         <span className="truncate">{name}</span>
         {isHost ? (
-          <span className="text-[10px] px-1.5 py-0.5 bg-blue-600/30 text-blue-300 rounded shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded shrink-0">
             Host
           </span>
         ) : isCoHost ? (
@@ -2942,7 +2942,7 @@ function MenuItem({
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-slate-700 transition-colors ${
-        active ? 'text-blue-400' : 'text-slate-200'
+        active ? 'text-indigo-400' : 'text-slate-200'
       }`}
     >
       <Icon className="w-4 h-4 shrink-0" />

@@ -24,18 +24,19 @@ export default function IconButton({
   disabled,
   className = '',
 }: Props) {
+  // Teams-style control button: icon on top, small label below (label hidden on
+  // very small screens). Rounded rectangle, flat by default with hover fill.
   const base =
-    'flex items-center justify-center gap-2 rounded-full transition-colors disabled:opacity-50';
-  // round circular on mobile, pill with text on sm+
-  const size = 'w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5';
+    'flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors disabled:opacity-50';
+  const size = 'w-12 h-12 sm:w-16 sm:h-14';
 
   const color = danger
-    ? 'bg-red-600 hover:bg-red-700 text-white'
+    ? 'bg-red-600 hover:bg-red-500 text-white'
     : warningState
-      ? 'bg-red-600 hover:bg-red-700 text-white'
+      ? 'bg-red-600 hover:bg-red-500 text-white'
       : active
-        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-        : 'bg-slate-700 hover:bg-slate-600 text-slate-100';
+        ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+        : 'bg-slate-800/60 hover:bg-slate-700 text-slate-200';
 
   return (
     <button
@@ -46,7 +47,7 @@ export default function IconButton({
       className={`${base} ${size} ${color} ${className}`}
     >
       <Icon className="w-5 h-5 shrink-0" />
-      <span className="hidden sm:inline text-sm">{label}</span>
+      <span className="hidden sm:block text-[11px] leading-tight">{label}</span>
     </button>
   );
 }
