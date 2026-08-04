@@ -340,63 +340,97 @@ export default function RoomPage({
 
     let mounted = true;
     (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: savedCam
-            ? { deviceId: { ideal: savedCam }, width: 640, height: 360 }
-            : { width: 640, height: 360 },
-          audio: {
-            ...(savedMic ? { deviceId: { ideal: savedMic } } : {}),
-            noiseSuppression: ns,
-            echoCancellation: true,
-            autoGainControl: true,
-          },
-        });
-        if (!mounted) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        setLocalStream(stream);
-        localStreamRef.current = stream;
-        // Reflect the actual devices in use, then enumerate the full list.
-        setMicId(stream.getAudioTracks()[0]?.getSettings().deviceId || '');
-        setCamId(stream.getVideoTracks()[0]?.getSettings().deviceId || '');
-        refreshDevices();
+      // Acquire mic/cam for preview + publishing. A device with no camera
+      // and/or no microphone must still be able to join (receive-only), so we
+      // fall back progressively instead of failing the whole join.
+      const audioConstraint: MediaTrackConstraints = {
+        ...(savedMic ? { deviceId: { ideal: savedMic } } : {}),
+        noiseSuppression: ns,
+        echoCancellation: true,
+        autoGainControl: true,
+      };
+      const videoConstraint: MediaTrackConstraints = savedCam
+        ? { deviceId: { ideal: savedCam }, width: 640, height: 360 }
+        : { width: 640, height: 360 };
 
-        // Breakout rooms: no lobby/pre-join — join straight in.
-        if (isBreakout) {
+      const tryGet = async (c: MediaStreamConstraints) => {
+        try {
+          return await navigator.mediaDevices.getUserMedia(c);
+        } catch {
+          return null;
+        }
+      };
+
+      let stream =
+        (await tryGet({ video: videoConstraint, audio: audioConstraint })) ||
+        (await tryGet({ audio: audioConstraint })) ||
+        (await tryGet({ video: videoConstraint }));
+
+      if (!mounted) {
+        stream?.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      // No camera and no microphone at all — join listen/watch-only with an
+      // empty stream so all the downstream publish/toggle logic still works.
+      const noDevices = !stream;
+      if (!stream) stream = new MediaStream();
+
+      const hasAudio = stream.getAudioTracks().length > 0;
+      const hasVideo = stream.getVideoTracks().length > 0;
+
+      setLocalStream(stream);
+      localStreamRef.current = stream;
+      // Reflect the actual devices in use, then enumerate the full list.
+      setMicId(stream.getAudioTracks()[0]?.getSettings().deviceId || '');
+      setCamId(stream.getVideoTracks()[0]?.getSettings().deviceId || '');
+      // Don't advertise mic/cam as "on" when the track doesn't exist.
+      if (!hasAudio) {
+        setMicOn(false);
+        micOnRef.current = false;
+      }
+      if (!hasVideo) {
+        setCamOn(false);
+        camOnRef.current = false;
+      }
+      if (noDevices) {
+        setError(
+          'No microphone or camera found — you can still listen and view shared screens.'
+        );
+      }
+      refreshDevices();
+
+      // Breakout rooms: no lobby/pre-join — join straight in.
+      if (isBreakout) {
+        setPrejoin(false);
+        handleJoin();
+        return;
+      }
+
+      // The host (room owner) skips the pre-join screen and enters directly.
+      try {
+        const { room } = await api.getRoom(roomId);
+        if (!mounted) return;
+        // Host, or a guest already admitted this session (reconnect/reload),
+        // skips the pre-join screen and enters directly.
+        const wasAdmitted = sessionStorage.getItem(`admitted:${roomId}`);
+        if (room?.ownerId === user.id || wasAdmitted) {
           setPrejoin(false);
           handleJoin();
-          return;
-        }
-
-        // The host (room owner) skips the pre-join screen and enters directly.
-        try {
-          const { room } = await api.getRoom(roomId);
-          if (!mounted) return;
-          // Host, or a guest already admitted this session (reconnect/reload),
-          // skips the pre-join screen and enters directly.
-          const wasAdmitted = sessionStorage.getItem(`admitted:${roomId}`);
-          if (room?.ownerId === user.id || wasAdmitted) {
-            setPrejoin(false);
-            handleJoin();
-          } else {
-            setCheckedOwner(true);
-          }
-        } catch (e: any) {
-          if (!mounted) return;
-          // Expired / invalid session → clear it and go to login.
-          if (e?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            router.replace('/login');
-            return;
-          }
-          // Other errors — fall back to the pre-join screen.
+        } else {
           setCheckedOwner(true);
         }
-      } catch (err: any) {
-        setError(err.message || 'Cannot access camera/microphone');
+      } catch (e: any) {
+        if (!mounted) return;
+        // Expired / invalid session → clear it and go to login.
+        if (e?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          router.replace('/login');
+          return;
+        }
+        // Other errors — fall back to the pre-join screen.
+        setCheckedOwner(true);
       }
     })();
 
