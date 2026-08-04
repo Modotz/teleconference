@@ -404,7 +404,7 @@ function RoomCard({
           </button>
           <button
             onClick={onJoin}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-sm font-medium"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium"
           >
             <Video className="w-4 h-4" />
             <span className="hidden sm:inline">Join</span>
