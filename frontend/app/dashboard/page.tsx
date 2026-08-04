@@ -185,7 +185,7 @@ export default function DashboardPage() {
                 .getElementById('meeting-name')
                 ?.focus();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-md text-sm font-medium shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-medium shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New meeting</span>
@@ -240,7 +240,7 @@ export default function DashboardPage() {
         <button
           type="submit"
           disabled={creating || !name.trim() || (scheduled && !scheduledAt)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded font-medium disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-medium disabled:opacity-50"
         >
           {scheduled ? (
             <>
@@ -469,7 +469,7 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
             </p>
             <button
               onClick={onClose}
-              className="mt-4 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm"
+              className="mt-4 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm"
             >
               Done
             </button>
@@ -497,7 +497,7 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
               <button
                 onClick={send}
                 disabled={sending}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm disabled:opacity-50"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm disabled:opacity-50"
               >
                 {sending ? 'Sending…' : 'Send invites'}
               </button>
