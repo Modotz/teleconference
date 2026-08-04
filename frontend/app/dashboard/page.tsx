@@ -155,7 +155,7 @@ export default function DashboardPage() {
   }, [rooms]);
 
   return (
-    <div className="min-h-screen flex bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-slate-100">
       {/* Teams-style left rail */}
       <AppRail
         active="meet"
@@ -169,11 +169,11 @@ export default function DashboardPage() {
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 border-b border-slate-800 bg-slate-900/50 backdrop-blur">
+        <header className="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 border-b border-gray-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 backdrop-blur">
           <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight truncate">Meet</h1>
             {me && (
-              <p className="text-xs text-slate-400 -mt-0.5 truncate">
+              <p className="text-xs text-gray-500 dark:text-slate-400 -mt-0.5 truncate">
                 Signed in as {me.username}
               </p>
             )}
@@ -195,14 +195,14 @@ export default function DashboardPage() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="max-w-3xl mx-auto">
       {/* Create / schedule */}
-      <form onSubmit={onCreate} className="bg-slate-800/60 rounded-lg p-4 mb-4 space-y-3">
+      <form onSubmit={onCreate} className="bg-white dark:bg-slate-800/60 rounded-lg p-4 mb-4 space-y-3">
         <input
           id="meeting-name"
           type="text"
           placeholder="Meeting / room name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2.5 bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500"
         />
 
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -212,19 +212,19 @@ export default function DashboardPage() {
             onChange={(e) => setScheduled(e.target.checked)}
             className="w-4 h-4 accent-blue-600"
           />
-          <CalendarClock className="w-4 h-4 text-slate-400" />
+          <CalendarClock className="w-4 h-4 text-gray-500 dark:text-slate-400" />
           Schedule for later
         </label>
 
         {scheduled && (
           <div className="space-y-3 pl-1">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Date & time</label>
+              <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Date & time</label>
               <input
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 rounded outline-none focus:ring-1 focus:ring-blue-500 [color-scheme:dark]"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500 dark:[color-scheme:dark]"
               />
             </div>
             <textarea
@@ -232,7 +232,7 @@ export default function DashboardPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
             />
           </div>
         )}
@@ -263,12 +263,12 @@ export default function DashboardPage() {
           placeholder="Paste a meeting link to join..."
           value={joinInput}
           onChange={(e) => setJoinInput(e.target.value)}
-          className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 min-w-0 px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
           type="submit"
           disabled={!joinInput.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm disabled:opacity-50"
+          className="flex items-center gap-1.5 px-4 py-2 bg-gray-300 dark:bg-slate-700 hover:bg-slate-600 rounded text-sm disabled:opacity-50"
         >
           <LinkIcon className="w-4 h-4" />
           Join
@@ -303,13 +303,13 @@ export default function DashboardPage() {
       {/* Instant / active rooms */}
       <section>
         <h2 className="text-lg font-medium mb-3 flex items-center gap-2">
-          <Video className="w-5 h-5 text-slate-400" />
+          <Video className="w-5 h-5 text-gray-500 dark:text-slate-400" />
           My rooms
         </h2>
         {loading ? (
-          <div className="text-slate-400">Loading...</div>
+          <div className="text-gray-500 dark:text-slate-400">Loading...</div>
         ) : instant.length === 0 ? (
-          <div className="text-slate-400 bg-slate-800/50 rounded p-6 text-center text-sm">
+          <div className="text-gray-500 dark:text-slate-400 bg-gray-100 dark:bg-slate-800/50 rounded p-6 text-center text-sm">
             No rooms yet. Start an instant meeting or schedule one above.
           </div>
         ) : (
@@ -354,23 +354,23 @@ function RoomCard({
   scheduled?: boolean;
 }) {
   return (
-    <li className="bg-slate-800 p-3 sm:p-4 rounded-lg">
+    <li className="bg-gray-200 dark:bg-slate-800 p-3 sm:p-4 rounded-lg">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{room.name}</div>
           {scheduled && room.scheduledAt && (
-            <div className="text-sm text-blue-300 flex items-center gap-1.5 mt-0.5">
+            <div className="text-sm text-indigo-600 dark:text-indigo-300 flex items-center gap-1.5 mt-0.5">
               <CalendarClock className="w-3.5 h-3.5" />
               {formatSchedule(room.scheduledAt)}
             </div>
           )}
           {room.description && (
-            <div className="text-xs text-slate-400 mt-1 line-clamp-2">
+            <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-2">
               {room.description}
             </div>
           )}
           {!scheduled && (
-            <div className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+            <div className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1 mt-1">
               <Users className="w-3.5 h-3.5" />
               {room._count.participants} joined
             </div>
@@ -379,7 +379,7 @@ function RoomCard({
         <div className="flex flex-col sm:flex-row gap-2 shrink-0">
           <button
             onClick={onCopy}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-300 dark:bg-slate-700 hover:bg-slate-600 rounded text-sm"
             title="Copy invite link"
           >
             {copied ? (
@@ -396,7 +396,7 @@ function RoomCard({
           </button>
           <button
             onClick={onInvite}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-300 dark:bg-slate-700 hover:bg-slate-600 rounded text-sm"
             title="Invite by email"
           >
             <Mail className="w-4 h-4" />
@@ -445,20 +445,20 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6">
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-semibold flex items-center gap-2">
             <Mail className="w-4 h-4" /> Invite by email
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-100"
+            className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-slate-400 mb-4 truncate">{room.name}</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4 truncate">{room.name}</p>
 
         {sent !== null ? (
           <div className="text-center py-4">
@@ -469,14 +469,14 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
             </p>
             <button
               onClick={onClose}
-              className="mt-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+              className="mt-4 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm"
             >
               Done
             </button>
           </div>
         ) : (
           <>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">
               Email addresses (comma, space or newline separated)
             </label>
             <textarea
@@ -484,20 +484,20 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
               onChange={(e) => setText(e.target.value)}
               rows={4}
               placeholder="alice@example.com, bob@example.com"
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
             />
             {err && <p className="text-red-400 text-xs mt-1">{err}</p>}
             <div className="flex justify-end gap-2 mt-4">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
+                className="px-4 py-2 bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-slate-700 rounded text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={send}
                 disabled={sending}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm disabled:opacity-50"
               >
                 {sending ? 'Sending…' : 'Send invites'}
               </button>

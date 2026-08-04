@@ -480,7 +480,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex bg-slate-950 text-slate-100">
+    <div className="h-screen flex bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-slate-100">
       {/* Teams-style left rail (hidden on mobile when a chat is open) */}
       <div className={activeId ? 'hidden md:flex' : 'flex'}>
         <AppRail active="chat" username={me?.username} />
@@ -491,13 +491,13 @@ export default function ChatPage() {
       <aside
         className={`${
           activeId ? 'hidden md:flex' : 'flex'
-        } w-full md:w-80 lg:w-96 border-r border-slate-800 flex-col`}
+        } w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-slate-800 flex-col`}
       >
-        <header className="px-4 h-14 border-b border-slate-800 flex items-center justify-between">
+        <header className="px-4 h-14 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
           <h1 className="font-semibold text-lg">Chat</h1>
           <button
             onClick={() => setNewChatOpen(true)}
-            className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 rounded-md"
+            className="w-8 h-8 flex items-center justify-center text-gray-700 dark:text-slate-300 hover:text-white hover:bg-gray-200 dark:hover:bg-slate-800 rounded-md"
             aria-label="New chat"
           >
             <Plus className="w-5 h-5" />
@@ -506,19 +506,19 @@ export default function ChatPage() {
 
         <div className="px-3 py-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
 
         <ul className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
-            <li className="text-center text-slate-500 py-8 text-sm px-4">
+            <li className="text-center text-gray-400 dark:text-slate-500 py-8 text-sm px-4">
               No chats yet. Click + to start one.
             </li>
           ) : (
@@ -530,11 +530,11 @@ export default function ChatPage() {
                 <li key={c.id}>
                   <button
                     onClick={() => setActiveId(c.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-800 transition-colors ${
-                      isActive ? 'bg-slate-800' : ''
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+                      isActive ? 'bg-gray-200 dark:bg-slate-800' : ''
                     }`}
                   >
-                    <div className="w-11 h-11 bg-slate-700 rounded-full flex items-center justify-center font-medium shrink-0">
+                    <div className="w-11 h-11 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center font-medium shrink-0">
                       {c.isGroup ? (
                         <Users className="w-5 h-5" />
                       ) : (
@@ -545,13 +545,13 @@ export default function ChatPage() {
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="font-medium truncate">{title}</span>
                         {c.lastMessage && (
-                          <span className="text-xs text-slate-500 shrink-0">
+                          <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">
                             {formatTimestamp(c.lastMessage.createdAt)}
                           </span>
                         )}
                       </div>
                       <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs text-slate-400 truncate">
+                        <span className="text-xs text-gray-500 dark:text-slate-400 truncate">
                           {conversationSubtitle(c)}
                         </span>
                         {u > 0 && (
@@ -571,10 +571,10 @@ export default function ChatPage() {
 
       {/* Content pane */}
       <section
-        className={`${activeId ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-slate-950 min-w-0`}
+        className={`${activeId ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-gray-100 dark:bg-slate-950 min-w-0`}
       >
         {!activeConv ? (
-          <div className="flex-1 flex items-center justify-center text-slate-500">
+          <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-slate-500">
             <div className="text-center">
               <UserIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <div>Select a chat to start messaging</div>
@@ -582,10 +582,10 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <header className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-3 shrink-0">
+            <header className="px-4 py-2.5 border-b border-gray-200 dark:border-slate-800 flex items-center gap-3 shrink-0">
               <button
                 onClick={() => setActiveId(null)}
-                className="md:hidden text-slate-400 hover:text-slate-100"
+                className="md:hidden text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
                 aria-label="Back"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -594,7 +594,7 @@ export default function ChatPage() {
                 onClick={() => setInfoOpen(true)}
                 className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80"
               >
-                <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center font-medium shrink-0">
+                <div className="w-9 h-9 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center font-medium shrink-0">
                   {activeConv.isGroup ? (
                     <Users className="w-4 h-4" />
                   ) : (
@@ -603,7 +603,7 @@ export default function ChatPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{conversationTitle(activeConv)}</div>
-                  <div className="text-xs text-slate-400 truncate">
+                  <div className="text-xs text-gray-500 dark:text-slate-400 truncate">
                     {(() => {
                       const typing = Array.from(
                         typingByConv.get(activeConv.id)?.values() || []
@@ -625,7 +625,7 @@ export default function ChatPage() {
               </button>
               <button
                 onClick={startCall}
-                className="p-2 text-green-400 hover:bg-slate-800 rounded-full"
+                className="p-2 text-green-400 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-full"
                 aria-label="Voice call"
                 title="Voice call"
               >
@@ -639,7 +639,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-slate-950">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gray-100 dark:bg-slate-950">
               {(messages[activeConv.id] || []).map((m) => {
                 const isMe = m.sender?.id === me?.id || m.senderId === me?.id;
                 const readInfo = isMe ? computeReadStatus(m, activeConv, me?.id, readByConv) : null;
@@ -650,11 +650,13 @@ export default function ChatPage() {
                   >
                     <div
                       className={`max-w-[80%] sm:max-w-[70%] rounded-lg px-3 py-2 ${
-                        isMe ? 'bg-indigo-600' : 'bg-slate-800'
+                        isMe
+                          ? 'bg-indigo-100 dark:bg-indigo-600'
+                          : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-transparent'
                       }`}
                     >
                       {activeConv.isGroup && !isMe && m.sender && (
-                        <div className="text-xs font-medium text-indigo-300 mb-0.5">
+                        <div className="text-xs font-medium text-indigo-600 dark:text-indigo-300 mb-0.5">
                           {m.sender.username}
                         </div>
                       )}
@@ -674,7 +676,7 @@ export default function ChatPage() {
                         <div className="flex justify-end mt-0.5">
                           {readInfo.allRead ? (
                             <CheckCheck
-                              className="w-3.5 h-3.5 text-sky-300"
+                              className="w-3.5 h-3.5 text-sky-500 dark:text-sky-300"
                               aria-label={`Read by ${readInfo.readCount}/${readInfo.total}`}
                             >
                               <title>
@@ -683,7 +685,7 @@ export default function ChatPage() {
                             </CheckCheck>
                           ) : readInfo.someRead ? (
                             <CheckCheck
-                              className="w-3.5 h-3.5 text-slate-300/70"
+                              className="w-3.5 h-3.5 text-gray-500/70 dark:text-slate-300/70"
                               aria-label={`Read by ${readInfo.readCount}/${readInfo.total}`}
                             >
                               <title>
@@ -691,7 +693,7 @@ export default function ChatPage() {
                               </title>
                             </CheckCheck>
                           ) : (
-                            <Check className="w-3.5 h-3.5 text-slate-300/60" aria-label="Sent" />
+                            <Check className="w-3.5 h-3.5 text-gray-500/60 dark:text-slate-300/60" aria-label="Sent" />
                           )}
                         </div>
                       )}
@@ -703,7 +705,7 @@ export default function ChatPage() {
             </div>
 
             {pendingFile && (
-              <div className="px-3 py-2 border-t border-slate-800 bg-slate-900 flex items-center gap-2">
+              <div className="px-3 py-2 border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
                 {pendingFile.type.startsWith('image/') ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -712,11 +714,11 @@ export default function ChatPage() {
                     alt={pendingFile.name}
                   />
                 ) : (
-                  <Paperclip className="w-5 h-5 text-slate-400" />
+                  <Paperclip className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm truncate">{pendingFile.name}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-gray-500 dark:text-slate-400">
                     {(pendingFile.size / 1024).toFixed(0)} KB
                     {uploading && ' • Uploading...'}
                   </div>
@@ -724,7 +726,7 @@ export default function ChatPage() {
                 {!uploading && (
                   <button
                     onClick={() => setPendingFile(null)}
-                    className="text-slate-400 hover:text-slate-100"
+                    className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100"
                     aria-label="Remove"
                   >
                     ✕
@@ -734,7 +736,7 @@ export default function ChatPage() {
             )}
 
             {emojiOpen && (
-              <div className="border-t border-slate-800">
+              <div className="border-t border-gray-200 dark:border-slate-800">
                 <EmojiPicker
                   width="100%"
                   height={300}
@@ -746,7 +748,7 @@ export default function ChatPage() {
             )}
 
             {recorder.recording ? (
-              <div className="p-2 border-t border-slate-800 flex items-center gap-2 shrink-0 bg-slate-900">
+              <div className="p-2 border-t border-gray-200 dark:border-slate-800 flex items-center gap-2 shrink-0 bg-white dark:bg-slate-900">
                 <span className="flex items-center gap-2 text-red-400 text-sm flex-1">
                   <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                   Recording {formatVoiceTime(recorder.elapsed)}
@@ -754,7 +756,7 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() => recorder.cancel()}
-                  className="p-2 text-slate-400 hover:text-red-400"
+                  className="p-2 text-gray-500 dark:text-slate-400 hover:text-red-400"
                   aria-label="Cancel recording"
                 >
                   <Trash2 className="w-5 h-5" />
@@ -772,7 +774,7 @@ export default function ChatPage() {
             ) : (
               <form
                 onSubmit={send}
-                className="p-2 border-t border-slate-800 flex items-end gap-1 shrink-0"
+                className="p-2 border-t border-gray-200 dark:border-slate-800 flex items-end gap-1 shrink-0"
               >
                 <input
                   ref={fileInputRef}
@@ -790,7 +792,7 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className="p-2 text-slate-400 hover:text-slate-100 rounded"
+                  className="p-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 rounded"
                   aria-label="Send image"
                 >
                   <ImageIcon className="w-5 h-5" />
@@ -798,7 +800,7 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-slate-400 hover:text-slate-100 rounded"
+                  className="p-2 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 rounded"
                   aria-label="Attach file"
                 >
                   <Paperclip className="w-5 h-5" />
@@ -807,7 +809,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={() => setEmojiOpen((v) => !v)}
                   className={`p-2 rounded ${
-                    emojiOpen ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-100'
+                    emojiOpen ? 'text-indigo-400' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
                   }`}
                   aria-label="Emoji"
                 >
@@ -835,7 +837,7 @@ export default function ChatPage() {
                   }}
                   rows={1}
                   placeholder="Type a message..."
-                  className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
+                  className="flex-1 min-w-0 px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
                 />
                 {text.trim() || pendingFile ? (
                   <button
@@ -973,12 +975,12 @@ function IncomingCallToast({
   onDecline: () => void;
 }) {
   return (
-    <div className="fixed top-4 right-4 z-40 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 w-80 flex flex-col gap-3">
+    <div className="fixed top-4 right-4 z-40 bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg shadow-xl p-4 w-80 flex flex-col gap-3">
       <div>
-        <div className="text-sm text-slate-400">Incoming call</div>
+        <div className="text-sm text-gray-500 dark:text-slate-400">Incoming call</div>
         <div className="font-semibold">{invite.fromUsername}</div>
         {invite.conversation.isGroup && (
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-gray-500 dark:text-slate-400">
             in {invite.conversation.name}
           </div>
         )}
@@ -986,7 +988,7 @@ function IncomingCallToast({
       <div className="flex gap-2">
         <button
           onClick={onDecline}
-          className="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+          className="flex-1 px-3 py-1.5 bg-gray-300 dark:bg-slate-700 hover:bg-slate-600 rounded text-sm"
         >
           Decline
         </button>

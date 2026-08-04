@@ -14,9 +14,16 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 
+// Applied before paint to avoid a flash of the wrong theme. Uses the stored
+// choice, else the OS preference.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

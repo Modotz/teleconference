@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Bell,
@@ -7,6 +8,8 @@ import {
   Video,
   Calendar,
   LogOut,
+  Sun,
+  Moon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +27,20 @@ export default function AppRail({
   const router = useRouter();
   const initial = (username?.[0] || '?').toUpperCase();
 
+  // Reflect the current theme (set pre-paint by the layout script).
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  function toggleTheme() {
+    const el = document.documentElement;
+    const next = !el.classList.contains('dark');
+    el.classList.toggle('dark', next);
+    localStorage.setItem('theme', next ? 'dark' : 'light');
+    setDark(next);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -31,7 +48,7 @@ export default function AppRail({
   }
 
   return (
-    <nav className="w-16 sm:w-[76px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-3">
+    <nav className="w-16 sm:w-[76px] shrink-0 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col items-center py-3">
       <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-900/40">
         <Video className="w-5 h-5 text-white" />
       </div>
@@ -57,6 +74,11 @@ export default function AppRail({
         />
       </div>
       <div className="mt-auto flex flex-col items-center gap-1 w-full">
+        <RailItem
+          icon={dark ? Sun : Moon}
+          label={dark ? 'Light' : 'Dark'}
+          onClick={toggleTheme}
+        />
         <RailItem icon={LogOut} label="Sign out" onClick={logout} />
         <div
           title={username}
@@ -91,8 +113,8 @@ function RailItem({
         active
           ? 'text-white'
           : disabled
-          ? 'text-slate-600 cursor-default'
-          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+          ? 'text-gray-400 dark:text-slate-600 cursor-default'
+          : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-200 dark:hover:bg-slate-800'
       }`}
     >
       {active && (

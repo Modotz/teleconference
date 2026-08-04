@@ -94,13 +94,13 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
   return (
     <>
       <div onClick={onClose} className="fixed inset-0 bg-black/60 z-40" aria-hidden />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(480px,calc(100vw-2rem))] max-h-[85vh] bg-slate-900 border border-slate-800 rounded-lg z-50 shadow-2xl flex flex-col">
-        <header className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(480px,calc(100vw-2rem))] max-h-[85vh] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg z-50 shadow-2xl flex flex-col">
+        <header className="px-5 py-3.5 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
           <h2 className="font-semibold flex items-center gap-2">
             {isGroup ? <Users className="w-5 h-5" /> : <User className="w-5 h-5" />}
             {isGroup ? 'New group' : 'New chat'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100">
+          <button onClick={onClose} className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100">
             <X className="w-5 h-5" />
           </button>
         </header>
@@ -111,20 +111,20 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Group name"
-              className="w-full px-3 py-2 bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
             />
           )}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search users..."
-              className="w-full pl-9 pr-3 py-2 bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
           {selected.size > 0 && (
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-gray-500 dark:text-slate-400">
               {selected.size} selected{selected.size >= 2 ? ' • will create group' : ''}
             </div>
           )}
@@ -132,7 +132,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
 
         <div className="flex-1 overflow-y-auto px-2">
           {users.length === 0 ? (
-            <div className="text-center text-slate-500 py-8 text-sm">No users found</div>
+            <div className="text-center text-gray-400 dark:text-slate-500 py-8 text-sm">No users found</div>
           ) : (
             <ul>
               {users.map((u) => {
@@ -141,20 +141,20 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
                   <li key={u.id}>
                     <button
                       onClick={() => toggleUser(u.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded hover:bg-slate-800 ${
-                        isSelected ? 'bg-slate-800' : ''
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded hover:bg-gray-200 dark:hover:bg-slate-800 ${
+                        isSelected ? 'bg-gray-200 dark:bg-slate-800' : ''
                       }`}
                     >
-                      <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
+                      <div className="w-9 h-9 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
                         {u.username[0]?.toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
                         <div className="text-sm font-medium truncate">{u.username}</div>
-                        <div className="text-xs text-slate-500 truncate">{u.email}</div>
+                        <div className="text-xs text-gray-400 dark:text-slate-500 truncate">{u.email}</div>
                       </div>
                       <div
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-600'
+                          isSelected ? "bg-indigo-600 border-indigo-600" : "border-gray-400 dark:border-slate-600"
                         }`}
                       >
                         {isSelected && (
@@ -181,7 +181,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
           )}
         </div>
 
-        <footer className="px-5 py-3 border-t border-slate-800 flex items-center justify-between gap-3">
+        <footer className="px-5 py-3 border-t border-gray-200 dark:border-slate-800 flex items-center justify-between gap-3">
           {error ? (
             <div className="text-red-400 text-xs flex-1">{error}</div>
           ) : (
@@ -189,14 +189,14 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
           )}
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-slate-300 hover:text-white"
+            className="px-3 py-1.5 text-sm text-gray-700 dark:text-slate-300 hover:text-white"
           >
             Cancel
           </button>
           <button
             onClick={create}
             disabled={loading || selected.size === 0}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm disabled:opacity-50"
           >
             {loading ? 'Creating...' : isGroup ? 'Create group' : 'Start chat'}
           </button>

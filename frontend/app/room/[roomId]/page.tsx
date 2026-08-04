@@ -1590,7 +1590,7 @@ export default function RoomPage({
   // Brief neutral loading while we check ownership (host skips pre-join entirely).
   if (prejoin && !checkedOwner) {
     return (
-      <main className="h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-slate-400">
+      <main className="dark h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-slate-400">
         <span className="w-6 h-6 border-2 border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
         <span className="text-sm">Connecting…</span>
       </main>
@@ -1600,7 +1600,7 @@ export default function RoomPage({
   // Pre-join screen (preview + controls + Join), then the waiting screen.
   if (prejoin || lobby) {
     return (
-      <main className="h-screen flex flex-col items-center justify-center gap-5 bg-slate-950 p-6 text-center">
+      <main className="dark h-screen flex flex-col items-center justify-center gap-5 bg-slate-950 p-6 text-center">
         <div className="relative w-full max-w-sm aspect-video bg-black rounded-lg overflow-hidden">
           <VideoTile
             stream={localStream}
@@ -1747,7 +1747,7 @@ export default function RoomPage({
   }
 
   return (
-    <main className="h-screen flex flex-col bg-slate-950">
+    <main className="dark h-screen flex flex-col bg-slate-950">
       {/* Floating emoji reactions */}
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
         {reactions.map((r) => (

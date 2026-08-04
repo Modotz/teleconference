@@ -33,8 +33,8 @@ export default function ChatMessage({ message }: Props) {
   return (
     <div>
       <div className="flex items-baseline gap-2">
-        <span className="text-blue-400 font-medium">{message.username}</span>
-        <span className="text-xs text-slate-500">
+        <span className="text-indigo-600 dark:text-indigo-300 font-medium">{message.username}</span>
+        <span className="text-xs text-gray-400 dark:text-slate-500">
           {new Date(message.createdAt).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
@@ -43,7 +43,7 @@ export default function ChatMessage({ message }: Props) {
       </div>
 
       {message.content && (
-        <div className="text-slate-200 break-words whitespace-pre-wrap">
+        <div className="text-gray-800 dark:text-slate-200 break-words whitespace-pre-wrap">
           {message.content}
         </div>
       )}
@@ -88,20 +88,20 @@ export default function ChatMessage({ message }: Props) {
           download={message.attachmentName || undefined}
           target="_blank"
           rel="noreferrer"
-          className="mt-1 inline-flex items-center gap-2 max-w-full bg-slate-800 hover:bg-slate-700 rounded px-3 py-2"
+          className="mt-1 inline-flex items-center gap-2 max-w-full bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-slate-700 rounded px-3 py-2"
         >
-          <File className="w-4 h-4 shrink-0 text-slate-400" />
+          <File className="w-4 h-4 shrink-0 text-gray-500 dark:text-slate-400" />
           <div className="min-w-0 flex-1">
-            <div className="text-sm text-slate-100 truncate">
+            <div className="text-sm text-gray-900 dark:text-slate-100 truncate">
               {message.attachmentName || 'file'}
             </div>
             {message.attachmentSize != null && (
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-gray-500 dark:text-slate-400">
                 {formatSize(message.attachmentSize)}
               </div>
             )}
           </div>
-          <Download className="w-4 h-4 shrink-0 text-slate-400" />
+          <Download className="w-4 h-4 shrink-0 text-gray-500 dark:text-slate-400" />
         </a>
       )}
     </div>

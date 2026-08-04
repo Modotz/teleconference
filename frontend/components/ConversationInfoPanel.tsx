@@ -120,19 +120,19 @@ export default function ConversationInfoPanel({
   return (
     <>
       <div onClick={onClose} className="fixed inset-0 bg-black/60 z-40" aria-hidden />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(420px,calc(100vw-2rem))] max-h-[85vh] bg-slate-900 border border-slate-800 rounded-lg z-50 shadow-2xl flex flex-col relative">
-        <header className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(420px,calc(100vw-2rem))] max-h-[85vh] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg z-50 shadow-2xl flex flex-col relative">
+        <header className="px-5 py-3.5 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
           <h2 className="font-semibold flex items-center gap-2">
             <Users className="w-5 h-5" />
             {conversation.isGroup ? 'Group info' : 'Chat info'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-100">
+          <button onClick={onClose} className="text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100">
             <X className="w-5 h-5" />
           </button>
         </header>
 
-        <div className="px-5 py-4 border-b border-slate-800">
-          <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">
+        <div className="px-5 py-4 border-b border-gray-200 dark:border-slate-800">
+          <div className="text-xs uppercase tracking-wider text-gray-400 dark:text-slate-500 mb-1">
             {conversation.isGroup ? 'Group name' : 'Contact'}
           </div>
           <div className="font-medium">{conversation.name || conversation.members.find((m) => m.userId !== currentUserId)?.user.username}</div>
@@ -140,13 +140,13 @@ export default function ConversationInfoPanel({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-5 py-3 flex items-center justify-between">
-            <div className="text-xs uppercase tracking-wider text-slate-500">
+            <div className="text-xs uppercase tracking-wider text-gray-400 dark:text-slate-500">
               {conversation.members.length} member{conversation.members.length !== 1 ? 's' : ''}
             </div>
             {conversation.isGroup && (
               <button
                 onClick={() => setAddMode((v) => !v)}
-                className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 {addMode ? 'Cancel' : 'Add member'}
@@ -157,17 +157,17 @@ export default function ConversationInfoPanel({
           {addMode ? (
             <div className="px-3 pb-3">
               <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search users..."
                   autoFocus
-                  className="w-full pl-9 pr-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               {addable.length === 0 ? (
-                <div className="text-center text-slate-500 py-4 text-sm">
+                <div className="text-center text-gray-400 dark:text-slate-500 py-4 text-sm">
                   No users found
                 </div>
               ) : (
@@ -177,19 +177,19 @@ export default function ConversationInfoPanel({
                       <button
                         onClick={() => addUser(u.id)}
                         disabled={adding === u.id}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-800 disabled:opacity-50"
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50"
                       >
-                        <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
+                        <div className="w-9 h-9 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
                           {u.username[0]?.toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
                           <div className="text-sm font-medium truncate">{u.username}</div>
-                          <div className="text-xs text-slate-500 truncate">{u.email}</div>
+                          <div className="text-xs text-gray-400 dark:text-slate-500 truncate">{u.email}</div>
                         </div>
                         {adding === u.id ? (
-                          <span className="text-xs text-slate-400">Adding...</span>
+                          <span className="text-xs text-gray-500 dark:text-slate-400">Adding...</span>
                         ) : (
-                          <UserPlus className="w-4 h-4 text-blue-400" />
+                          <UserPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         )}
                       </button>
                     </li>
@@ -210,18 +210,18 @@ export default function ConversationInfoPanel({
                 return (
                   <li
                     key={m.userId}
-                    className="group flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-800"
+                    className="group flex items-center gap-3 px-3 py-2 rounded hover:bg-gray-200 dark:hover:bg-slate-800"
                   >
-                    <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
+                    <div className="w-9 h-9 bg-gray-300 dark:bg-slate-700 rounded-full flex items-center justify-center text-sm font-medium">
                       {m.user.username[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">
-                        {m.user.username} {isYou && <span className="text-slate-500">(you)</span>}
+                        {m.user.username} {isYou && <span className="text-gray-400 dark:text-slate-500">(you)</span>}
                       </div>
                     </div>
                     {isOwner && (
-                      <span className="text-xs text-blue-400 shrink-0">owner</span>
+                      <span className="text-xs text-indigo-600 dark:text-indigo-400 shrink-0">owner</span>
                     )}
                     {canRemove && (
                       <button
@@ -259,7 +259,7 @@ export default function ConversationInfoPanel({
                   ? 'Leave this group?'
                   : `Remove ${confirmRemove.username}?`}
               </div>
-              <div className="text-sm text-slate-400 mb-5">
+              <div className="text-sm text-gray-500 dark:text-slate-400 mb-5">
                 {confirmRemove.isSelf
                   ? "You won't receive messages from this group anymore."
                   : 'They will no longer be able to see new messages in this group.'}
@@ -267,7 +267,7 @@ export default function ConversationInfoPanel({
               <div className="flex gap-2 justify-center">
                 <button
                   onClick={() => setConfirmRemove(null)}
-                  className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm"
+                  className="px-4 py-1.5 bg-gray-300 dark:bg-slate-700 hover:bg-slate-600 rounded text-sm"
                 >
                   Cancel
                 </button>
@@ -288,7 +288,7 @@ export default function ConversationInfoPanel({
         )}
 
         {error && (
-          <div className="px-5 py-2 text-red-400 text-xs border-t border-slate-800">
+          <div className="px-5 py-2 text-red-400 text-xs border-t border-gray-200 dark:border-slate-800">
             {error}
           </div>
         )}
