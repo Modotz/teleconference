@@ -2138,13 +2138,13 @@ export default function RoomPage({
                 }
               }}
               rows={1}
-              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
+              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 text-slate-100 placeholder:text-slate-500 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
             />
             <button
               type="submit"
               disabled={uploading || (!chatInput.trim() && !pendingFile)}
               aria-label="Send message"
-              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
+              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>

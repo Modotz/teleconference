@@ -14,6 +14,12 @@ html.dark body { background: #0f172a; color: #e2e8f0; }
 html:not(.dark) { color-scheme: light; }
 html.dark, .dark { color-scheme: dark; }
 
+/* The Room is always dark and its root carries `.dark` even in the light app
+   theme. Give that scope a light default text colour so elements without an
+   explicit text-* class (e.g. the chat textarea) don't inherit the light
+   theme's dark body text and vanish against the dark UI. */
+.dark { color: #e2e8f0; }
+
 /* In light mode, form fills (mapped from dark surfaces) can land white-on-white.
    Give text inputs a visible edge so they read as fields. Dark mode keeps the
    original borderless fills. */
