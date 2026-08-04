@@ -16,6 +16,18 @@ export function authMiddleware(req, res, next) {
   }
 }
 
+/**
+ * Blocks guest tokens (issued by POST /auth/guest). Guests have no DB user, so
+ * any route that reads or writes user-scoped rows must sit behind this — the
+ * foreign key would blow up otherwise. Use after authMiddleware.
+ */
+export function requireAccount(req, res, next) {
+  if (req.user?.guest) {
+    return res.status(403).json({ error: 'Guests cannot perform this action' });
+  }
+  next();
+}
+
 export function verifyToken(token) {
   return jwt.verify(token, process.env.JWT_SECRET);
 }

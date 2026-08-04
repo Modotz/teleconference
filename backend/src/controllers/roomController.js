@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { sendMail, appUrl } from '../lib/mailer.js';
 
 export async function createRoom(req, res) {
-  const { name, description, scheduledAt } = req.body;
+  const { name, description, scheduledAt, durationMinutes } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
 
   let scheduled = null;
@@ -14,11 +14,22 @@ export async function createRoom(req, res) {
     scheduled = d;
   }
 
+  // Clamp duration to a sane range; default to 60 minutes.
+  let duration = 60;
+  if (durationMinutes != null) {
+    const n = Math.round(Number(durationMinutes));
+    if (!Number.isFinite(n) || n < 5 || n > 8 * 60) {
+      return res.status(400).json({ error: 'Invalid durationMinutes' });
+    }
+    duration = n;
+  }
+
   const room = await prisma.room.create({
     data: {
       name,
       description: description?.trim() || null,
       scheduledAt: scheduled,
+      durationMinutes: duration,
       ownerId: req.user.id,
     },
   });

@@ -157,6 +157,15 @@ export default function RoomPage({
   // True while the socket is dropped and we're trying to reconnect.
   const [reconnecting, setReconnecting] = useState(false);
 
+  // No saved session → offer to join anonymously by name instead of bouncing
+  // to /login (a meeting link should be openable by anyone).
+  const [needsGuest, setNeedsGuest] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestBusy, setGuestBusy] = useState(false);
+  const [guestError, setGuestError] = useState('');
+  // Bumped after a guest signs in so the mount effect re-runs with a token.
+  const [authTick, setAuthTick] = useState(0);
+
   // Device selection (mic / camera / speaker).
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [cams, setCams] = useState<MediaDeviceInfo[]>([]);
@@ -291,9 +300,11 @@ export default function RoomPage({
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
     if (!token || !userStr) {
-      router.replace('/login');
+      // Anyone with the link can join by name only — show the guest gate.
+      setNeedsGuest(true);
       return;
     }
+    setNeedsGuest(false);
     const user = JSON.parse(userStr);
     setMe(user);
     setDisplayName((prev) => prev || user.username);
@@ -422,11 +433,17 @@ export default function RoomPage({
         }
       } catch (e: any) {
         if (!mounted) return;
-        // Expired / invalid session → clear it and go to login.
+        // Expired / invalid session → clear it. Guests get the name gate back;
+        // real accounts go to login.
         if (e?.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          router.replace('/login');
+          if (user?.guest) {
+            setGuestName(user.username || '');
+            setNeedsGuest(true);
+          } else {
+            router.replace('/login');
+          }
           return;
         }
         // Other errors — fall back to the pre-join screen.
@@ -452,7 +469,45 @@ export default function RoomPage({
       localStreamRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, authTick]);
+
+  /**
+   * Where leaving the room lands you. Guests have no dashboard (the /rooms
+   * endpoints reject them), so send them to the landing page instead.
+   */
+  function leaveRoomTo(mode: 'replace' | 'push' = 'replace') {
+    let guest = false;
+    try {
+      guest = !!JSON.parse(localStorage.getItem('user') || '{}')?.guest;
+    } catch {
+      /* ignore */
+    }
+    const path = guest ? '/' : '/meet';
+    if (mode === 'push') router.push(path);
+    else router.replace(path);
+  }
+
+  /** Exchange a display name for a short-lived guest token, then continue. */
+  async function submitGuest(e: React.FormEvent) {
+    e.preventDefault();
+    const name = guestName.trim();
+    if (!name || guestBusy) return;
+    setGuestBusy(true);
+    setGuestError('');
+    try {
+      const { token, user } = await api.guestLogin(name);
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setDisplayName(name);
+      setNeedsGuest(false);
+      // Re-run the mount effect, now with a token in place.
+      setAuthTick((n) => n + 1);
+    } catch (err: any) {
+      setGuestError(err?.message || 'Could not join as guest');
+    } finally {
+      setGuestBusy(false);
+    }
+  }
 
   async function refreshDevices() {
     try {
@@ -777,7 +832,7 @@ export default function RoomPage({
             clientRef.current?.markLeaving();
             sessionStorage.removeItem(`admitted:${roomId}`);
             alert('You were removed from the room by the host.');
-            router.replace('/dashboard');
+            leaveRoomTo();
           },
           onReaction: ({ emoji, username }) => {
             const id = ++reactionIdRef.current;
@@ -868,7 +923,7 @@ export default function RoomPage({
             if (!endingRef.current) {
               alert('The meeting has been ended by the host.');
             }
-            router.replace('/dashboard');
+            leaveRoomTo();
           },
           onDisconnected: () => setReconnecting(true),
           onReconnected: () => {
@@ -1097,12 +1152,12 @@ export default function RoomPage({
         if (err?.message === 'denied') {
           sessionStorage.removeItem(`admitted:${roomId}`);
           alert('The host declined your request to join.');
-          router.replace('/dashboard');
+          leaveRoomTo();
           return;
         }
         if (err?.message === 'locked') {
           alert('This meeting is locked by the host.');
-          router.replace('/dashboard');
+          leaveRoomTo();
           return;
         }
         if (err?.message === 'pin') {
@@ -1330,7 +1385,7 @@ export default function RoomPage({
     clientRef.current?.leave();
     localStream?.getTracks().forEach((t) => t.stop());
     localScreenStream?.getTracks().forEach((t) => t.stop());
-    router.push('/dashboard');
+    leaveRoomTo('push');
   }
 
   async function sendChat(e: React.FormEvent) {
@@ -1587,11 +1642,62 @@ export default function RoomPage({
     );
   }
 
+  // No session: let anyone with the link join by name only.
+  if (needsGuest) {
+    return (
+      <main className="dark h-screen flex flex-col items-center justify-center gap-6 bg-slate-950 p-6 text-slate-100">
+        <div className="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center shadow-lg shadow-brand-900/40">
+          <Video className="w-6 h-6 text-white" />
+        </div>
+        <div className="text-center">
+          <h1 className="text-lg font-semibold">Join the meeting</h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Enter the name others will see. No account needed.
+          </p>
+        </div>
+
+        <form onSubmit={submitGuest} className="w-full max-w-sm space-y-3">
+          <div className="text-left">
+            <label className="block text-xs text-slate-400 mb-1">Your name</label>
+            <input
+              value={guestName}
+              onChange={(e) => {
+                setGuestName(e.target.value);
+                setGuestError('');
+              }}
+              maxLength={40}
+              autoFocus
+              placeholder="e.g. Budi Santoso"
+              className="w-full px-3 py-2.5 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+          {guestError && <p className="text-red-400 text-xs">{guestError}</p>}
+          <button
+            type="submit"
+            disabled={!guestName.trim() || guestBusy}
+            className="w-full px-6 py-2.5 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 rounded text-sm font-medium"
+          >
+            {guestBusy ? 'Joining…' : 'Continue'}
+          </button>
+        </form>
+
+        <button
+          onClick={() =>
+            router.push(`/login?next=${encodeURIComponent(`/room/${roomId}`)}`)
+          }
+          className="text-sm text-slate-400 hover:text-slate-200 underline underline-offset-4"
+        >
+          Sign in with an account instead
+        </button>
+      </main>
+    );
+  }
+
   // Brief neutral loading while we check ownership (host skips pre-join entirely).
   if (prejoin && !checkedOwner) {
     return (
       <main className="dark h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-slate-400">
-        <span className="w-6 h-6 border-2 border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
+        <span className="w-6 h-6 border-2 border-slate-600 border-t-brand-500 rounded-full animate-spin" />
         <span className="text-sm">Connecting…</span>
       </main>
     );
@@ -1648,7 +1754,7 @@ export default function RoomPage({
             }}
             maxLength={40}
             placeholder="Your name"
-            className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
@@ -1691,7 +1797,7 @@ export default function RoomPage({
               }}
               placeholder="Enter PIN"
               maxLength={10}
-              className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
             />
             {pinError && (
               <p className="text-amber-400 text-xs mt-1">{pinError}</p>
@@ -1708,7 +1814,7 @@ export default function RoomPage({
             <h1 className="text-lg font-semibold">Ready to join?</h1>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => router.replace('/dashboard')}
+                onClick={() => leaveRoomTo()}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
               >
                 Cancel
@@ -1716,7 +1822,7 @@ export default function RoomPage({
               <button
                 onClick={handleJoin}
                 disabled={!localStream || joining}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded text-sm font-medium"
+                className="px-6 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 rounded text-sm font-medium"
               >
                 {joining ? 'Joining…' : 'Join'}
               </button>
@@ -1731,11 +1837,11 @@ export default function RoomPage({
               </p>
             </div>
             <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+              <span className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
               Waiting for host
             </div>
             <button
-              onClick={() => router.replace('/dashboard')}
+              onClick={() => leaveRoomTo()}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm"
             >
               Cancel
@@ -1797,7 +1903,7 @@ export default function RoomPage({
                 key={i}
                 className="max-w-full bg-black/75 text-white text-sm sm:text-base rounded px-3 py-1.5"
               >
-                <span className="text-indigo-300 font-medium">{c.name}:</span>{' '}
+                <span className="text-brand-300 font-medium">{c.name}:</span>{' '}
                 {c.text}
               </div>
             ))}
@@ -1807,7 +1913,7 @@ export default function RoomPage({
       {/* Reconnecting overlay when the network drops */}
       {reconnecting && (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm">
-          <span className="w-8 h-8 border-2 border-slate-600 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="w-8 h-8 border-2 border-slate-600 border-t-brand-500 rounded-full animate-spin" />
           <div className="text-slate-200 font-medium">Reconnecting…</div>
           <p className="text-slate-400 text-sm">Check your internet connection</p>
           <button
@@ -1828,7 +1934,7 @@ export default function RoomPage({
             {waitingPeers.size > 1 && (
               <button
                 onClick={() => clientRef.current?.admitAll()}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
+                className="text-xs text-brand-400 hover:text-brand-300"
               >
                 Admit all
               </button>
@@ -1842,7 +1948,7 @@ export default function RoomPage({
                 </span>
                 <button
                   onClick={() => clientRef.current?.admitPeer(peerId)}
-                  className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded"
+                  className="px-2 py-1 text-xs bg-brand-600 hover:bg-brand-500 rounded"
                 >
                   Admit
                 </button>
@@ -2049,7 +2155,7 @@ export default function RoomPage({
               {uploading && (
                 <div className="mt-1.5 h-1 bg-slate-700 rounded overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 transition-all"
+                    className="h-full bg-brand-500 transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
@@ -2111,7 +2217,7 @@ export default function RoomPage({
               aria-label="Emoji"
               title="Emoji"
               className={`p-2 rounded ${
-                emojiOpen ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-100'
+                emojiOpen ? 'text-brand-400' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               <Smile className="w-5 h-5" />
@@ -2138,13 +2244,13 @@ export default function RoomPage({
                 }
               }}
               rows={1}
-              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 text-slate-100 placeholder:text-slate-500 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
+              className="flex-1 min-w-0 px-3 py-2 bg-slate-800 text-slate-100 placeholder:text-slate-500 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-brand-500 resize-none max-h-32"
             />
             <button
               type="submit"
               disabled={uploading || (!chatInput.trim() && !pendingFile)}
               aria-label="Send message"
-              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
+              className="px-3 py-2 bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded shrink-0"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -2195,7 +2301,7 @@ export default function RoomPage({
                 {waitingPeers.size > 1 && (
                   <button
                     onClick={() => clientRef.current?.admitAll()}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                    className="text-xs text-brand-400 hover:text-brand-300"
                   >
                     Admit all
                   </button>
@@ -2213,7 +2319,7 @@ export default function RoomPage({
                     <span className="min-w-0 flex-1 truncate">{info.username}</span>
                     <button
                       onClick={() => clientRef.current?.admitPeer(peerId)}
-                      className="px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 rounded"
+                      className="px-2 py-1 text-xs bg-brand-600 hover:bg-brand-500 rounded"
                     >
                       Admit
                     </button>
@@ -2267,7 +2373,7 @@ export default function RoomPage({
                       onChange={(e) => setPinDraft(e.target.value)}
                       placeholder="Meeting PIN (optional)"
                       maxLength={10}
-                      className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
                     />
                     <button
                       onClick={savePin}
@@ -2327,7 +2433,7 @@ export default function RoomPage({
                       value={breakoutBcast}
                       onChange={(e) => setBreakoutBcast(e.target.value)}
                       placeholder="Message all breakouts…"
-                      className="flex-1 min-w-0 px-2 py-1.5 bg-slate-800 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="flex-1 min-w-0 px-2 py-1.5 bg-slate-800 rounded text-xs outline-none focus:ring-1 focus:ring-brand-500"
                     />
                     <button
                       type="submit"
@@ -2360,12 +2466,12 @@ export default function RoomPage({
                     if (e.key === 'Enter') saveName();
                     if (e.key === 'Escape') setEditingName(false);
                   }}
-                  className="min-w-0 flex-1 px-2 py-1 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="min-w-0 flex-1 px-2 py-1 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
                 />
                 <button
                   onClick={saveName}
                   title="Save"
-                  className="p-1.5 rounded bg-indigo-600 hover:bg-indigo-500 shrink-0"
+                  className="p-1.5 rounded bg-brand-600 hover:bg-brand-500 shrink-0"
                 >
                   <Check className="w-4 h-4" />
                 </button>
@@ -2785,7 +2891,7 @@ function PreJoinDevice({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
       >
         {options.length === 0 && <option value="">{label}</option>}
         {options.map((d, i) => (
@@ -2832,7 +2938,7 @@ function ParticipantRow({
       <div className="min-w-0 flex-1 flex items-center gap-1.5">
         <span className="truncate">{name}</span>
         {isHost ? (
-          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-600/30 text-indigo-300 rounded shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 bg-brand-600/30 text-brand-300 rounded shrink-0">
             Host
           </span>
         ) : isCoHost ? (
@@ -2976,7 +3082,7 @@ function MenuItem({
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-slate-700 transition-colors ${
-        active ? 'text-indigo-400' : 'text-slate-200'
+        active ? 'text-brand-400' : 'text-slate-200'
       }`}
     >
       <Icon className="w-4 h-4 shrink-0" />

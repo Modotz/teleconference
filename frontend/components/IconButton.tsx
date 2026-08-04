@@ -35,7 +35,7 @@ export default function IconButton({
     : warningState
       ? 'bg-red-600 hover:bg-red-500 text-white'
       : active
-        ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+        ? 'bg-brand-600 hover:bg-brand-500 text-white'
         : 'bg-slate-800/60 hover:bg-slate-700 text-slate-200';
 
   return (

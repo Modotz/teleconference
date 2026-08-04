@@ -146,7 +146,7 @@ export default function ConversationInfoPanel({
             {conversation.isGroup && (
               <button
                 onClick={() => setAddMode((v) => !v)}
-                className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+                className="flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:text-brand-500 dark:hover:text-brand-300"
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 {addMode ? 'Cancel' : 'Add member'}
@@ -163,7 +163,7 @@ export default function ConversationInfoPanel({
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search users..."
                   autoFocus
-                  className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
               {addable.length === 0 ? (
@@ -189,7 +189,7 @@ export default function ConversationInfoPanel({
                         {adding === u.id ? (
                           <span className="text-xs text-gray-500 dark:text-slate-400">Adding...</span>
                         ) : (
-                          <UserPlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                          <UserPlus className="w-4 h-4 text-brand-600 dark:text-brand-400" />
                         )}
                       </button>
                     </li>
@@ -221,7 +221,7 @@ export default function ConversationInfoPanel({
                       </div>
                     </div>
                     {isOwner && (
-                      <span className="text-xs text-indigo-600 dark:text-indigo-400 shrink-0">owner</span>
+                      <span className="text-xs text-brand-600 dark:text-brand-400 shrink-0">owner</span>
                     )}
                     {canRemove && (
                       <button

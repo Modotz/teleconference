@@ -180,7 +180,7 @@ export default function LayoutSettingsPanel({
                     className={`flex flex-col items-center gap-1.5 p-3 rounded border-2 transition-colors
                       ${
                         active
-                          ? 'border-blue-500 bg-blue-500/10 text-white'
+                          ? 'border-brand-500 bg-brand-500/10 text-white'
                           : 'border-slate-700 hover:border-slate-600 text-slate-300'
                       }`}
                   >
@@ -212,7 +212,7 @@ export default function LayoutSettingsPanel({
                     className={`flex flex-col items-center gap-1 p-2 rounded border-2 transition-colors disabled:opacity-50
                       ${
                         active
-                          ? 'border-blue-500 bg-blue-500/10 text-white'
+                          ? 'border-brand-500 bg-brand-500/10 text-white'
                           : 'border-slate-700 hover:border-slate-600 text-slate-300'
                       }`}
                   >
@@ -232,7 +232,7 @@ export default function LayoutSettingsPanel({
                   className={`flex flex-col items-center gap-1 p-2 rounded border-2 transition-colors disabled:opacity-50
                     ${
                       customActive
-                        ? 'border-blue-500 bg-blue-500/10 text-white'
+                        ? 'border-brand-500 bg-brand-500/10 text-white'
                         : 'border-slate-700 hover:border-slate-600 text-slate-300'
                     }`}
                 >
@@ -337,7 +337,7 @@ export default function LayoutSettingsPanel({
                 <select
                   value={captionLang}
                   onChange={(e) => onCaptionLang(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  className="mt-1 w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
                 >
                   {CAPTION_LANGS.map((l) => (
                     <option key={l.code} value={l.code}>
@@ -420,7 +420,7 @@ function DeviceSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+        className="w-full px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
       >
         {options.length === 0 && <option value="">{fallback}</option>}
         {options.map((d, i) => (

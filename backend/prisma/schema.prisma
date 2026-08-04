@@ -35,6 +35,7 @@ model Room {
   owner        User          @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   isActive     Boolean       @default(true)
   scheduledAt  DateTime?
+  durationMinutes Int         @default(60)
   createdAt    DateTime      @default(now())
   endedAt      DateTime?
   participants Participant[]

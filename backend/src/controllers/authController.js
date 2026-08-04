@@ -14,6 +14,21 @@ function signToken(user) {
 
 const randomToken = () => crypto.randomBytes(32).toString('hex');
 
+/**
+ * Issue a short-lived guest token so someone without an account can join a
+ * meeting by name only. Guests are not DB users — their id is prefixed
+ * `guest:` and flagged so the socket layer skips user-scoped DB writes.
+ */
+export async function guestLogin(req, res) {
+  const name = String(req.body?.displayName || '').trim().slice(0, 60);
+  if (!name) return res.status(400).json({ error: 'displayName required' });
+  const id = 'guest:' + crypto.randomUUID();
+  const token = jwt.sign({ id, username: name, guest: true }, process.env.JWT_SECRET, {
+    expiresIn: '12h',
+  });
+  res.json({ token, user: { id, username: name, guest: true } });
+}
+
 async function sendVerifyEmail(email, token) {
   const link = `${appUrl()}/verify-email?token=${token}`;
   await sendMail({

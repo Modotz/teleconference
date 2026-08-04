@@ -111,7 +111,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Group name"
-              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-brand-500"
             />
           )}
           <div className="relative">
@@ -120,7 +120,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search users..."
-              className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
           {selected.size > 0 && (
@@ -154,7 +154,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
                       </div>
                       <div
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                          isSelected ? "bg-indigo-600 border-indigo-600" : "border-gray-400 dark:border-slate-600"
+                          isSelected ? "bg-brand-600 border-brand-600" : "border-gray-400 dark:border-slate-600"
                         }`}
                       >
                         {isSelected && (
@@ -196,7 +196,7 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
           <button
             onClick={create}
             disabled={loading || selected.size === 0}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm disabled:opacity-50"
+            className="px-4 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded text-sm disabled:opacity-50"
           >
             {loading ? 'Creating...' : isGroup ? 'Create group' : 'Start chat'}
           </button>

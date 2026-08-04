@@ -40,10 +40,21 @@ export default function LoginPage() {
     }
   }
 
+  /**
+   * Where to land after signing in. `?next=` lets a meeting link bounce here
+   * and back (see the guest gate in /room/[roomId]); only same-origin paths
+   * are honoured so the param can't be used as an open redirect.
+   */
+  function nextPath() {
+    if (typeof window === 'undefined') return '/meet';
+    const n = new URLSearchParams(window.location.search).get('next');
+    return n && n.startsWith('/') && !n.startsWith('//') ? n : '/meet';
+  }
+
   function finishLogin(token: string, user: any) {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
-    router.replace('/dashboard');
+    router.replace(nextPath());
   }
 
   // Render the "Sign in with Google" button once the GIS script is ready.
@@ -99,7 +110,7 @@ export default function LoginPage() {
     }
     api
       .me()
-      .then(() => router.replace('/dashboard'))
+      .then(() => router.replace(nextPath()))
       .catch(() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -127,7 +138,7 @@ export default function LoginPage() {
   if (checking) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <span className="w-6 h-6 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin" />
+        <span className="w-6 h-6 border-2 border-slate-600 border-t-brand-500 rounded-full animate-spin" />
       </main>
     );
   }
@@ -136,10 +147,10 @@ export default function LoginPage() {
     <main className="min-h-screen flex bg-slate-950 text-slate-100">
       {/* Left: branding / showcase (desktop only) */}
       <section className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900" />
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-600 via-brand-700 to-slate-900" />
         {/* soft decorative blobs */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-brand-400/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-400/20 rounded-full blur-3xl" />
 
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16">
           <div className="flex items-center gap-3">
@@ -177,7 +188,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* mobile logo */}
           <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
               <Video className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold">{APP_NAME}</span>
@@ -197,7 +208,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={resendVerification}
                     disabled={resent}
-                    className="block mt-1 text-blue-300 hover:text-blue-200 underline disabled:opacity-60"
+                    className="block mt-1 text-brand-300 hover:text-brand-200 underline disabled:opacity-60"
                   >
                     {resent ? 'Verification email sent' : 'Resend verification email'}
                   </button>
@@ -214,7 +225,7 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   required
                 />
               </div>
@@ -229,7 +240,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   required
                 />
                 <button
@@ -250,7 +261,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="mt-1 py-2.5 bg-brand-600 hover:bg-brand-700 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && (
                 <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -260,7 +271,7 @@ export default function LoginPage() {
 
             <Link
               href="/forgot-password"
-              className="text-sm text-blue-400 hover:text-blue-300 text-center"
+              className="text-sm text-brand-400 hover:text-brand-300 text-center"
             >
               Forgot password?
             </Link>
@@ -279,7 +290,7 @@ export default function LoginPage() {
 
           <p className="mt-6 text-sm text-slate-400 text-center">
             Don&apos;t have an account?{' '}
-            <Link href="/register" className="text-blue-400 hover:text-blue-300 font-medium">
+            <Link href="/register" className="text-brand-400 hover:text-brand-300 font-medium">
               Create one
             </Link>
           </p>

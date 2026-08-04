@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
     <main className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center">
             <Video className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-bold">{APP_NAME}</span>
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
               </p>
               <Link
                 href="/login"
-                className="mt-2 inline-block px-5 py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium"
+                className="mt-2 inline-block px-5 py-2.5 bg-brand-600 hover:bg-brand-700 rounded-lg text-sm font-medium"
               >
                 Go to sign in
               </Link>
@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
               </p>
               <Link
                 href="/forgot-password"
-                className="mt-2 text-sm text-blue-400 hover:text-blue-300"
+                className="mt-2 text-sm text-brand-400 hover:text-brand-300"
               >
                 Request a new link
               </Link>
@@ -104,7 +104,7 @@ export default function ResetPasswordPage() {
                     placeholder="New password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-10 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                     required
                   />
                   <button
@@ -123,14 +123,14 @@ export default function ResetPasswordPage() {
                     placeholder="Confirm new password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-10 pr-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                     required
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="py-2.5 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium text-sm disabled:opacity-50"
+                  className="py-2.5 bg-brand-600 hover:bg-brand-700 rounded-lg font-medium text-sm disabled:opacity-50"
                 >
                   {loading ? 'Updating…' : 'Update password'}
                 </button>

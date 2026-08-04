@@ -208,7 +208,7 @@ export default function VideoTile({
   const ringClass = isSpeaking
     ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-slate-950'
     : pinned
-      ? 'ring-2 ring-blue-500'
+      ? 'ring-2 ring-brand-500'
       : '';
 
   return (
@@ -312,7 +312,7 @@ export default function VideoTile({
             aria-label={pinned ? 'Unpin' : 'Pin'}
             title={pinned ? 'Unpin' : 'Pin to spotlight'}
             className={`p-1.5 rounded bg-black/60 hover:bg-black/80 transition-opacity
-              ${pinned ? 'opacity-100 text-blue-400' : 'opacity-0 group-hover:opacity-100 text-white'}`}
+              ${pinned ? 'opacity-100 text-brand-400' : 'opacity-0 group-hover:opacity-100 text-white'}`}
           >
             {pinned ? (
               <PinOff className="w-3.5 h-3.5" />

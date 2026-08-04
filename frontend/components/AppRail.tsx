@@ -49,11 +49,16 @@ export default function AppRail({
 
   return (
     <nav className="w-16 sm:w-[76px] shrink-0 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col items-center py-3">
-      <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-900/40">
+      <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center mb-4 shadow-lg shadow-brand-900/40">
         <Video className="w-5 h-5 text-white" />
       </div>
       <div className="flex flex-col items-center gap-1 w-full">
-        <RailItem icon={Bell} label="Activity" disabled />
+        <RailItem
+          icon={Bell}
+          label="Activity"
+          active={active === 'activity'}
+          onClick={() => router.push('/activity')}
+        />
         <RailItem
           icon={MessageSquare}
           label="Chat"
@@ -64,13 +69,13 @@ export default function AppRail({
           icon={Video}
           label="Meet"
           active={active === 'meet'}
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push('/meet')}
         />
         <RailItem
           icon={Calendar}
           label="Calendar"
           active={active === 'calendar'}
-          onClick={onCalendar ?? (() => router.push('/dashboard'))}
+          onClick={onCalendar ?? (() => router.push('/calendar'))}
         />
       </div>
       <div className="mt-auto flex flex-col items-center gap-1 w-full">
@@ -82,7 +87,7 @@ export default function AppRail({
         <RailItem icon={LogOut} label="Sign out" onClick={logout} />
         <div
           title={username}
-          className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-semibold mt-1 text-white"
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-sm font-semibold mt-1 text-white"
         >
           {initial}
         </div>
@@ -118,9 +123,9 @@ function RailItem({
       }`}
     >
       {active && (
-        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-indigo-500" />
+        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-brand-500" />
       )}
-      <Icon className={`w-5 h-5 ${active ? 'text-indigo-400' : ''}`} />
+      <Icon className={`w-5 h-5 ${active ? 'text-brand-400' : ''}`} />
       <span className="text-[10px] leading-none">{label}</span>
     </button>
   );

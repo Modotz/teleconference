@@ -511,7 +511,7 @@ export default function ChatPage() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </div>
@@ -611,7 +611,7 @@ export default function ChatPage() {
                       if (typing.length > 0) {
                         const names = typing.map((t) => t.username).join(', ');
                         return (
-                          <span className="text-indigo-400">
+                          <span className="text-brand-400">
                             {names} {typing.length === 1 ? 'is' : 'are'} typing...
                           </span>
                         );
@@ -652,12 +652,12 @@ export default function ChatPage() {
                     <div
                       className={`max-w-[80%] sm:max-w-[70%] rounded-lg px-3 py-2 ${
                         isMe
-                          ? 'bg-indigo-100 dark:bg-indigo-600'
+                          ? 'bg-brand-100 dark:bg-brand-600'
                           : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-transparent'
                       }`}
                     >
                       {activeConv.isGroup && !isMe && m.sender && (
-                        <div className="text-xs font-medium text-indigo-600 dark:text-indigo-300 mb-0.5">
+                        <div className="text-xs font-medium text-brand-600 dark:text-brand-300 mb-0.5">
                           {m.sender.username}
                         </div>
                       )}
@@ -766,7 +766,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={sendVoiceMessage}
                   disabled={uploading}
-                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded shrink-0"
+                  className="px-3 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-50 rounded shrink-0"
                   aria-label="Send voice message"
                 >
                   <Send className="w-4 h-4" />
@@ -810,7 +810,7 @@ export default function ChatPage() {
                   type="button"
                   onClick={() => setEmojiOpen((v) => !v)}
                   className={`p-2 rounded ${
-                    emojiOpen ? 'text-indigo-400' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
+                    emojiOpen ? 'text-brand-400' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
                   }`}
                   aria-label="Emoji"
                 >
@@ -838,13 +838,13 @@ export default function ChatPage() {
                   }}
                   rows={1}
                   placeholder="Type a message..."
-                  className="flex-1 min-w-0 px-3 py-2 bg-white dark:bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
+                  className="flex-1 min-w-0 px-3 py-2 bg-white dark:bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-brand-500 resize-none max-h-32"
                 />
                 {text.trim() || pendingFile ? (
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="h-[38px] w-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 rounded shrink-0"
+                    className="h-[38px] w-10 flex items-center justify-center bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 rounded shrink-0"
                     aria-label="Send"
                   >
                     <Send className="w-4 h-4" />
@@ -853,7 +853,7 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={() => recorder.start()}
-                    className="h-[38px] w-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded shrink-0"
+                    className="h-[38px] w-10 flex items-center justify-center bg-brand-600 hover:bg-brand-500 text-white rounded shrink-0"
                     aria-label="Record voice message"
                     title="Hold or click to record"
                   >

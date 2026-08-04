@@ -177,7 +177,7 @@ export default function Whiteboard({
           onClick={() => setTool('pen')}
           title="Pen"
           className={`p-2 rounded ${
-            tool === 'pen' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+            tool === 'pen' ? 'bg-brand-600 text-white' : 'bg-slate-800 text-slate-300'
           }`}
         >
           <Pencil className="w-4 h-4" />
@@ -186,7 +186,7 @@ export default function Whiteboard({
           onClick={() => setTool('eraser')}
           title="Eraser"
           className={`p-2 rounded ${
-            tool === 'eraser' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+            tool === 'eraser' ? 'bg-brand-600 text-white' : 'bg-slate-800 text-slate-300'
           }`}
         >
           <Eraser className="w-4 h-4" />

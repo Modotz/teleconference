@@ -26,7 +26,7 @@ export default function Home() {
     }
     api
       .me()
-      .then(() => router.replace('/dashboard'))
+      .then(() => router.replace('/meet'))
       .catch(() => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -37,7 +37,7 @@ export default function Home() {
   if (checking) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <span className="w-6 h-6 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin" />
+        <span className="w-6 h-6 border-2 border-slate-600 border-t-brand-500 rounded-full animate-spin" />
       </main>
     );
   }
@@ -45,14 +45,14 @@ export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col">
       {/* Background gradient + blobs */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950 to-indigo-950" />
-      <div className="absolute -top-32 -left-20 w-[28rem] h-[28rem] bg-blue-500/15 rounded-full blur-3xl" />
-      <div className="absolute -bottom-32 -right-20 w-[28rem] h-[28rem] bg-indigo-500/15 rounded-full blur-3xl" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-950 to-brand-950" />
+      <div className="absolute -top-32 -left-20 w-[28rem] h-[28rem] bg-brand-500/15 rounded-full blur-3xl" />
+      <div className="absolute -bottom-32 -right-20 w-[28rem] h-[28rem] bg-brand-500/15 rounded-full blur-3xl" />
 
       {/* Top bar */}
       <header className="relative z-10 flex items-center justify-between px-6 sm:px-10 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center">
             <Video className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold tracking-tight">{APP_NAME}</span>
@@ -67,14 +67,14 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-10">
-        <span className="inline-flex items-center gap-2 text-xs font-medium text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-full px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+        <span className="inline-flex items-center gap-2 text-xs font-medium text-brand-300 bg-brand-500/10 border border-brand-500/30 rounded-full px-3 py-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
           Browser-based · No installs
         </span>
 
         <h1 className="mt-6 text-4xl sm:text-5xl font-bold tracking-tight max-w-3xl">
           Meet, talk, and collaborate in{' '}
-          <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-brand-400 to-brand-400 bg-clip-text text-transparent">
             HD
           </span>
         </h1>
@@ -86,7 +86,7 @@ export default function Home() {
         <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full max-w-sm">
           <Link
             href="/register"
-            className="flex-1 text-center px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+            className="flex-1 text-center px-6 py-3 bg-brand-600 hover:bg-brand-700 rounded-lg font-medium transition-colors"
           >
             Get started — it&apos;s free
           </Link>
@@ -123,7 +123,7 @@ function Chip({
 }) {
   return (
     <div className="flex items-center gap-2 bg-white/5 border border-slate-800 rounded-lg px-3 py-2.5">
-      <Icon className="w-4 h-4 text-blue-400 shrink-0" />
+      <Icon className="w-4 h-4 text-brand-400 shrink-0" />
       <span className="text-xs sm:text-sm text-slate-300">{text}</span>
     </div>
   );

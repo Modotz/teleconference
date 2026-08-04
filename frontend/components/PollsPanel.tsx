@@ -82,7 +82,7 @@ export default function PollsPanel({
             onClick={() => setTab('qa')}
             className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 ${
               tab === 'qa'
-                ? 'text-blue-400 border-b-2 border-blue-500'
+                ? 'text-brand-400 border-b-2 border-brand-500'
                 : 'text-slate-400'
             }`}
           >
@@ -92,7 +92,7 @@ export default function PollsPanel({
             onClick={() => setTab('polls')}
             className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 ${
               tab === 'polls'
-                ? 'text-blue-400 border-b-2 border-blue-500'
+                ? 'text-brand-400 border-b-2 border-brand-500'
                 : 'text-slate-400'
             }`}
           >
@@ -176,7 +176,7 @@ function QATab({
                 onClick={() => onUpvote(q.id)}
                 className={`shrink-0 flex flex-col items-center justify-center w-10 rounded-md ${
                   myUpvotes.has(q.id)
-                    ? 'bg-blue-600/30 text-blue-300'
+                    ? 'bg-brand-600/30 text-brand-300'
                     : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -222,12 +222,12 @@ function QATab({
           onChange={(e) => setText(e.target.value)}
           placeholder="Ask a question…"
           maxLength={300}
-          className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 min-w-0 px-3 py-2 bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
         />
         <button
           type="submit"
           disabled={!text.trim()}
-          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+          className="px-3 py-2 bg-brand-600 hover:bg-brand-700 rounded text-sm disabled:opacity-50"
         >
           Ask
         </button>
@@ -273,7 +273,7 @@ function PollsTab({
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Poll question"
-              className="w-full px-3 py-2 bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
             />
             {options.map((o, i) => (
               <div key={i} className="flex gap-2">
@@ -285,7 +285,7 @@ function PollsTab({
                     )
                   }
                   placeholder={`Option ${i + 1}`}
-                  className="flex-1 min-w-0 px-3 py-2 bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 min-w-0 px-3 py-2 bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
                 />
                 {options.length > 2 && (
                   <button
@@ -302,7 +302,7 @@ function PollsTab({
             {options.length < 6 && (
               <button
                 onClick={() => setOptions((prev) => [...prev, ''])}
-                className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" /> Add option
               </button>
@@ -316,7 +316,7 @@ function PollsTab({
               </button>
               <button
                 onClick={submit}
-                className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 rounded"
+                className="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-700 rounded"
               >
                 Launch poll
               </button>
@@ -366,13 +366,13 @@ function PollsTab({
                   >
                     <div
                       className={`absolute inset-y-0 left-0 ${
-                        mine ? 'bg-blue-600/40' : 'bg-slate-700/50'
+                        mine ? 'bg-brand-600/40' : 'bg-slate-700/50'
                       }`}
                       style={{ width: `${pct}%` }}
                     />
                     <div className="relative flex items-center justify-between px-3 py-1.5 text-sm">
                       <span className="flex items-center gap-1.5">
-                        {mine && <Check className="w-3.5 h-3.5 text-blue-300" />}
+                        {mine && <Check className="w-3.5 h-3.5 text-brand-300" />}
                         {o.text}
                       </span>
                       <span className="text-xs text-slate-400">

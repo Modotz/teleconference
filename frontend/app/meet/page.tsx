@@ -33,6 +33,7 @@ export default function DashboardPage() {
   const [description, setDescription] = useState('');
   const [scheduled, setScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
+  const [duration, setDuration] = useState(60);
   const [joinInput, setJoinInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -84,10 +85,12 @@ export default function DashboardPage() {
         scheduledAt: scheduled && scheduledAt
           ? new Date(scheduledAt).toISOString()
           : undefined,
+        durationMinutes: scheduled ? duration : undefined,
       });
       setName('');
       setDescription('');
       setScheduledAt('');
+      setDuration(60);
       if (scheduled) {
         // Scheduled meeting → stay on dashboard, show in list
         setScheduled(false);
@@ -157,15 +160,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen flex bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-slate-100">
       {/* Teams-style left rail */}
-      <AppRail
-        active="meet"
-        username={me?.username}
-        onCalendar={() =>
-          document
-            .getElementById('upcoming')
-            ?.scrollIntoView({ behavior: 'smooth' })
-        }
-      />
+      <AppRail active="meet" username={me?.username} />
 
       {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
@@ -185,7 +180,7 @@ export default function DashboardPage() {
                 .getElementById('meeting-name')
                 ?.focus();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-md text-sm font-medium shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-md text-sm font-medium shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New meeting</span>
@@ -202,7 +197,7 @@ export default function DashboardPage() {
           placeholder="Meeting / room name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-brand-500"
         />
 
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
@@ -210,7 +205,7 @@ export default function DashboardPage() {
             type="checkbox"
             checked={scheduled}
             onChange={(e) => setScheduled(e.target.checked)}
-            className="w-4 h-4 accent-blue-600"
+            className="w-4 h-4 accent-brand-600"
           />
           <CalendarClock className="w-4 h-4 text-gray-500 dark:text-slate-400" />
           Schedule for later
@@ -224,15 +219,33 @@ export default function DashboardPage() {
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-indigo-500 dark:[color-scheme:dark]"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded outline-none focus:ring-1 focus:ring-brand-500 dark:[color-scheme:dark]"
               />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 dark:text-slate-400 mb-1">Duration</label>
+              <select
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500 dark:[color-scheme:dark]"
+              >
+                {[15, 30, 45, 60, 90, 120, 180].map((m) => (
+                  <option key={m} value={m}>
+                    {m < 60
+                      ? `${m} min`
+                      : m % 60 === 0
+                      ? `${m / 60} hour${m === 60 ? '' : 's'}`
+                      : `${Math.floor(m / 60)}h ${m % 60}m`}
+                  </option>
+                ))}
+              </select>
             </div>
             <textarea
               placeholder="Description / agenda (optional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-white dark:bg-slate-900 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500 resize-none"
             />
           </div>
         )}
@@ -240,7 +253,7 @@ export default function DashboardPage() {
         <button
           type="submit"
           disabled={creating || !name.trim() || (scheduled && !scheduledAt)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-medium disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded font-medium disabled:opacity-50"
         >
           {scheduled ? (
             <>
@@ -263,7 +276,7 @@ export default function DashboardPage() {
           placeholder="Paste a meeting link to join..."
           value={joinInput}
           onChange={(e) => setJoinInput(e.target.value)}
-          className="flex-1 min-w-0 px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 min-w-0 px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-brand-500"
         />
         <button
           type="submit"
@@ -281,7 +294,7 @@ export default function DashboardPage() {
       {upcoming.length > 0 && (
         <section id="upcoming" className="mb-6 scroll-mt-20">
           <h2 className="text-lg font-medium mb-3 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-400" />
+            <Calendar className="w-5 h-5 text-brand-400" />
             Upcoming meetings
           </h2>
           <ul className="grid gap-3">
@@ -359,7 +372,7 @@ function RoomCard({
         <div className="min-w-0 flex-1">
           <div className="font-medium truncate">{room.name}</div>
           {scheduled && room.scheduledAt && (
-            <div className="text-sm text-indigo-600 dark:text-indigo-300 flex items-center gap-1.5 mt-0.5">
+            <div className="text-sm text-brand-600 dark:text-brand-300 flex items-center gap-1.5 mt-0.5">
               <CalendarClock className="w-3.5 h-3.5" />
               {formatSchedule(room.scheduledAt)}
             </div>
@@ -404,7 +417,7 @@ function RoomCard({
           </button>
           <button
             onClick={onJoin}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-medium"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded text-sm font-medium"
           >
             <Video className="w-4 h-4" />
             <span className="hidden sm:inline">Join</span>
@@ -469,7 +482,7 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
             </p>
             <button
               onClick={onClose}
-              className="mt-4 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm"
+              className="mt-4 px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded text-sm"
             >
               Done
             </button>
@@ -484,7 +497,7 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
               onChange={(e) => setText(e.target.value)}
               rows={4}
               placeholder="alice@example.com, bob@example.com"
-              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 bg-gray-200 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg text-sm outline-none focus:ring-1 focus:ring-brand-500 resize-none"
             />
             {err && <p className="text-red-400 text-xs mt-1">{err}</p>}
             <div className="flex justify-end gap-2 mt-4">
@@ -497,7 +510,7 @@ function InviteModal({ room, onClose }: { room: Room; onClose: () => void }) {
               <button
                 onClick={send}
                 disabled={sending}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm disabled:opacity-50"
+                className="px-5 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded text-sm disabled:opacity-50"
               >
                 {sending ? 'Sending…' : 'Send invites'}
               </button>

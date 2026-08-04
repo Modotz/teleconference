@@ -273,7 +273,10 @@ export function registerSignaling(io) {
         };
         addPeer(roomId, peer);
 
-        await prisma.participant.create({ data: { roomId, userId: user.id } });
+        // Guests aren't DB users — skip the participant record for them.
+        if (!user.guest) {
+          await prisma.participant.create({ data: { roomId, userId: user.id } });
+        }
 
         socket.to(roomId).emit('peerJoined', {
           peerId: socket.id,
@@ -1011,17 +1014,28 @@ export function registerSignaling(io) {
         const hasAttachment = attachment && attachment.url;
         if (!hasContent && !hasAttachment) return;
 
-        const msg = await prisma.message.create({
-          data: {
-            roomId: currentRoomId,
-            userId: user.id,
-            content: content || '',
-            attachmentUrl: attachment?.url ?? null,
-            attachmentName: attachment?.name ?? null,
-            attachmentType: attachment?.type ?? null,
-            attachmentSize: attachment?.size ?? null,
-          },
-        });
+        // Guests aren't DB users, so their messages are broadcast live but not
+        // persisted (they won't appear in history for later joiners).
+        const msg = user.guest
+          ? {
+              id: 'g:' + Math.random().toString(36).slice(2) + Date.now().toString(36),
+              content: content || '',
+              attachmentUrl: attachment?.url ?? null,
+              attachmentName: attachment?.name ?? null,
+              attachmentType: attachment?.type ?? null,
+              attachmentSize: attachment?.size ?? null,
+            }
+          : await prisma.message.create({
+              data: {
+                roomId: currentRoomId,
+                userId: user.id,
+                content: content || '',
+                attachmentUrl: attachment?.url ?? null,
+                attachmentName: attachment?.name ?? null,
+                attachmentType: attachment?.type ?? null,
+                attachmentSize: attachment?.size ?? null,
+              },
+            });
         const senderName =
           getPeer(currentRoomId, socket.id)?.username || user.username;
         io.to(currentRoomId).emit('chatMessage', {
@@ -1075,6 +1089,8 @@ export function registerSignaling(io) {
         roomStart.delete(currentRoomId);
       }
 
+      // Guests never got a participant row on join, so there's nothing to close.
+      if (user.guest) return;
       try {
         const last = await prisma.participant.findFirst({
           where: { roomId: currentRoomId, userId: user.id, leftAt: null },

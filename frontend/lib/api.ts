@@ -110,7 +110,19 @@ export const api = {
   me: () => request<{ user: any }>('/auth/me'),
 
   listRooms: () => request<{ rooms: any[] }>('/rooms'),
-  createRoom: (body: { name: string; description?: string; scheduledAt?: string }) =>
+  // Anonymous guest access: exchange a display name for a short-lived token so
+  // someone without an account can join a meeting by name only.
+  guestLogin: (displayName: string) =>
+    request<{ token: string; user: { id: string; username: string; guest: true } }>(
+      '/auth/guest',
+      { method: 'POST', body: JSON.stringify({ displayName }) }
+    ),
+  createRoom: (body: {
+    name: string;
+    description?: string;
+    scheduledAt?: string;
+    durationMinutes?: number;
+  }) =>
     request<{ room: any }>('/rooms', {
       method: 'POST',
       body: JSON.stringify(body),

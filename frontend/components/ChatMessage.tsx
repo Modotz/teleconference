@@ -33,7 +33,7 @@ export default function ChatMessage({ message }: Props) {
   return (
     <div>
       <div className="flex items-baseline gap-2">
-        <span className="text-indigo-600 dark:text-indigo-300 font-medium">{message.username}</span>
+        <span className="text-brand-600 dark:text-brand-300 font-medium">{message.username}</span>
         <span className="text-xs text-gray-400 dark:text-slate-500">
           {new Date(message.createdAt).toLocaleTimeString([], {
             hour: '2-digit',
