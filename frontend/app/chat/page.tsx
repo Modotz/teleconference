@@ -511,7 +511,7 @@ export default function ChatPage() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search chats..."
-              className="w-full pl-9 pr-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 rounded text-sm outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -625,11 +625,12 @@ export default function ChatPage() {
               </button>
               <button
                 onClick={startCall}
-                className="p-2 text-green-400 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-full"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium shadow-sm shrink-0"
                 aria-label="Voice call"
-                title="Voice call"
+                title="Start voice call"
               >
-                <Phone className="w-5 h-5" />
+                <Phone className="w-4 h-4" />
+                <span className="hidden sm:inline">Call</span>
               </button>
             </header>
 
@@ -837,13 +838,13 @@ export default function ChatPage() {
                   }}
                   rows={1}
                   placeholder="Type a message..."
-                  className="flex-1 min-w-0 px-3 py-2 bg-gray-200 dark:bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
+                  className="flex-1 min-w-0 px-3 py-2 bg-white dark:bg-slate-800 rounded text-sm leading-5 outline-none focus:ring-1 focus:ring-indigo-500 resize-none max-h-32"
                 />
                 {text.trim() || pendingFile ? (
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded shrink-0"
+                    className="h-[38px] w-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 rounded shrink-0"
                     aria-label="Send"
                   >
                     <Send className="w-4 h-4" />
@@ -852,7 +853,7 @@ export default function ChatPage() {
                   <button
                     type="button"
                     onClick={() => recorder.start()}
-                    className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded shrink-0"
+                    className="h-[38px] w-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded shrink-0"
                     aria-label="Record voice message"
                     title="Hold or click to record"
                   >

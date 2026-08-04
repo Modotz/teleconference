@@ -189,14 +189,14 @@ export default function NewChatModal({ open, onClose, onCreated }: Props) {
           )}
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm text-gray-700 dark:text-slate-300 hover:text-white"
+            className="px-3 py-1.5 text-sm text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
           >
             Cancel
           </button>
           <button
             onClick={create}
             disabled={loading || selected.size === 0}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded text-sm disabled:opacity-50"
+            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm disabled:opacity-50"
           >
             {loading ? 'Creating...' : isGroup ? 'Create group' : 'Start chat'}
           </button>
