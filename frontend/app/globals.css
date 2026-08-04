@@ -7,6 +7,13 @@ html, body { height: 100%; }
 body { background: #f3f4f6; color: #111827; }
 html.dark body { background: #0f172a; color: #e2e8f0; }
 
+/* Tell the browser which palette to render native controls (select/option,
+   date pickers, scrollbars) with. The Room is always dark (its root carries
+   `.dark`) even when the app theme is light, so scope color-scheme to `.dark`
+   too — otherwise a light-theme app leaves the Room's dropdown text dark-on-dark. */
+html:not(.dark) { color-scheme: light; }
+html.dark, .dark { color-scheme: dark; }
+
 /* In light mode, form fills (mapped from dark surfaces) can land white-on-white.
    Give text inputs a visible edge so they read as fields. Dark mode keeps the
    original borderless fills. */
