@@ -71,6 +71,7 @@ model Message {
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
+  @@index([attachmentUrl])
 }
 
 model Conversation {
@@ -115,6 +116,24 @@ model DirectMessage {
 
   @@index([conversationId])
   @@index([senderId])
+  @@index([attachmentUrl])
+}
+
+/// An encrypted file on disk. Written by POST /api/upload before the message
+/// that references it exists, so the uploader can preview it straight away —
+/// authorisation for everyone else is derived from the message instead.
+///
+/// `uploaderId` is the raw token subject, not a foreign key: guests upload too
+/// and their id (`guest:<uuid>`) has no row in User.
+model UploadedFile {
+  id         String   @id @default(uuid())
+  filename   String   @unique
+  uploaderId String
+  mimeType   String
+  size       Int
+  createdAt  DateTime @default(now())
+
+  @@index([uploaderId])
 }
 
 /// A third-party application authorised to use the public Voice Call API.

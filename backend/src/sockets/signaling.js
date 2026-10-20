@@ -13,6 +13,7 @@ import {
 } from '../mediasoup/roomManager.js';
 import prisma from '../config/prisma.js';
 import { registerChat, registerUserSocket, bindAppEvents } from './chatSocket.js';
+import { seal, open } from '../lib/contentCrypto.js';
 import { registerCall } from './callSocket.js';
 import { registerSdkCall } from './sdkCallSocket.js';
 
@@ -310,7 +311,7 @@ export function registerSignaling(io) {
           id: m.id,
           userId: m.user.id,
           username: m.user.username,
-          content: m.content,
+          content: open(m.content),
           attachmentUrl: m.attachmentUrl,
           attachmentName: m.attachmentName,
           attachmentType: m.attachmentType,
@@ -1029,7 +1030,9 @@ export function registerSignaling(io) {
               data: {
                 roomId: currentRoomId,
                 userId: user.id,
-                content: content || '',
+                // Sealed for the DB only — the broadcast below sends the
+                // plaintext the sender typed.
+                content: seal(content || ''),
                 attachmentUrl: attachment?.url ?? null,
                 attachmentName: attachment?.name ?? null,
                 attachmentType: attachment?.type ?? null,
@@ -1042,7 +1045,7 @@ export function registerSignaling(io) {
           id: msg.id,
           userId: user.id,
           username: senderName,
-          content: msg.content,
+          content: content || '',
           attachmentUrl: msg.attachmentUrl,
           attachmentName: msg.attachmentName,
           attachmentType: msg.attachmentType,

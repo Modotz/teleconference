@@ -8,6 +8,20 @@ function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+/**
+ * Absolute URL for a chat attachment.
+ *
+ * Attachments now sit behind auth, and `<img>` / `<audio>` / download links
+ * cannot send an Authorization header — so the JWT rides along as `?token=`,
+ * which the backend accepts on this route only.
+ */
+export function attachmentUrl(path?: string | null): string | null {
+  if (!path) return null;
+  const token = getToken();
+  const base = `${getServerBase()}${path}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
+
 export interface UploadedAttachment {
   url: string;
   name: string;

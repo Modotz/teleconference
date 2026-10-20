@@ -10,7 +10,9 @@
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "keygen": "node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"",
+    "encrypt:backfill": "node scripts/encrypt-backfill.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

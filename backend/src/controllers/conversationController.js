@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { appEvents } from '../events.js';
+import { openMessage } from '../lib/contentCrypto.js';
 
 /** List conversations the current user is a member of, with last message + members. */
 export async function listConversations(req, res) {
@@ -25,7 +26,7 @@ export async function listConversations(req, res) {
     .map((m) => ({
       ...m.conversation,
       lastReadAt: m.lastReadAt,
-      lastMessage: m.conversation.messages[0] || null,
+      lastMessage: openMessage(m.conversation.messages[0]) || null,
       messages: undefined, // strip
     }))
     .sort((a, b) => {
@@ -133,7 +134,7 @@ export async function listMessages(req, res) {
     include: { sender: { select: { id: true, username: true } } },
   });
 
-  res.json({ messages: messages.reverse() });
+  res.json({ messages: openMessage(messages.reverse()) });
 }
 
 export async function addMember(req, res) {

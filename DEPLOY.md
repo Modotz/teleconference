@@ -82,6 +82,11 @@ JWT_SECRET=<long-random-string>
 JWT_EXPIRES_IN=7d
 CALL_TOKEN_SECRET=<another-long-random-string>
 
+# Encrypts chat bodies and attachments at rest. `npm run keygen` prints one.
+# Required in production — the server refuses to start without it.
+# BACK THIS UP OFF-SERVER: losing it loses every message and attachment.
+CONTENT_KEY_B64=<base64 of 32 random bytes>
+
 # mediasoup — ANNOUNCED_IP MUST be the VPS PUBLIC IP, or remote media fails.
 MEDIASOUP_LISTEN_IP=0.0.0.0
 MEDIASOUP_ANNOUNCED_IP=<YOUR_VPS_PUBLIC_IP>
@@ -183,6 +188,18 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/teleconference /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
+```
+
+Attachment downloads carry the JWT as `?token=` (image tags cannot send an
+`Authorization` header), and Nginx's default `combined` log format writes the
+full query string. Either keep `access_log` off the backend block or strip the
+parameter:
+
+```nginx
+map $request_uri $loggable_uri { "~^(?<clean>[^?]*)" $clean; default $request_uri; }
+log_format no_query '$remote_addr - $remote_user [$time_local] '
+                    '"$request_method $loggable_uri" $status $body_bytes_sent';
+access_log /var/log/nginx/api.access.log no_query;
 ```
 
 ## 8. HTTPS (Let's Encrypt)

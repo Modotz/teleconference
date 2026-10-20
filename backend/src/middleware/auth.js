@@ -1,19 +1,40 @@
 import jwt from 'jsonwebtoken';
 
+function verify(token, req, res, next) {
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
 export function authMiddleware(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing or invalid Authorization header' });
   }
+  return verify(header.slice(7), req, res, next);
+}
 
-  const token = header.slice(7);
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = payload;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+/**
+ * Same as authMiddleware, but falls back to `?token=` in the query string.
+ *
+ * `<img>`, `<audio>` and download links cannot carry an Authorization header,
+ * so attachment URLs pass the JWT as a query parameter instead. That puts the
+ * token in access logs, so keep this on read-only file routes — never on
+ * anything that mutates state.
+ */
+export function authMiddlewareAllowQuery(req, res, next) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    return verify(header.slice(7), req, res, next);
   }
+  const qs = req.query?.token;
+  if (typeof qs === 'string' && qs) {
+    return verify(qs, req, res, next);
+  }
+  return res.status(401).json({ error: 'Missing token' });
 }
 
 /**

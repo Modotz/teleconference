@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { File, Download } from 'lucide-react';
-import { getServerBase } from '@/lib/config';
+import { attachmentUrl } from '@/lib/api';
 
 interface Props {
   message: {
@@ -28,7 +28,7 @@ export default function ChatMessage({ message }: Props) {
 
   const isImage = message.attachmentType?.startsWith('image/');
   const isAudio = message.attachmentType?.startsWith('audio/');
-  const url = message.attachmentUrl ? `${getServerBase()}${message.attachmentUrl}` : null;
+  const url = attachmentUrl(message.attachmentUrl);
 
   return (
     <div>

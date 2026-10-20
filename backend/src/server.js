@@ -13,7 +13,9 @@ import v1Routes from './routes/v1.js';
 import { openapiSpec } from './openapi.js';
 import { createWorkers } from './mediasoup/worker.js';
 import { registerSignaling } from './sockets/signaling.js';
-import { UPLOAD_DIR } from './middleware/upload.js';
+import { serveUpload } from './controllers/fileController.js';
+import { authMiddlewareAllowQuery } from './middleware/auth.js';
+import { encryptionEnabled } from './lib/contentCrypto.js';
 
 const app = express();
 
@@ -52,8 +54,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Serve uploaded files (no auth — URLs use UUIDs so they're unguessable)
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }));
+// Attachments are stored encrypted and served only to people who can see the
+// message they belong to. Was `express.static` — which handed any upload to
+// anyone holding the URL, signed in or not.
+app.get('/uploads/:filename', authMiddlewareAllowQuery, serveUpload);
+app.head('/uploads/:filename', authMiddlewareAllowQuery, serveUpload);
 
 app.use('/api', routes);
 
@@ -79,6 +84,9 @@ async function start() {
     const proto = useHttps ? 'https' : 'http';
     console.log(`Backend running on ${proto}://localhost:${PORT}`);
     console.log(`         LAN access:  ${proto}://<your-lan-ip>:${PORT}`);
+    console.log(
+      `Content encryption: ${encryptionEnabled ? 'ON (AES-256)' : 'OFF — set CONTENT_KEY_B64'}`
+    );
     if (httpOnly) {
       console.log('Mode: HTTP (localhost dev). Run `npm run dev:https` for LAN/phone testing.');
     } else if (!useHttps) {

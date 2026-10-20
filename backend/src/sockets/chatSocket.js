@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { appEvents } from '../events.js';
+import { seal } from '../lib/contentCrypto.js';
 
 const userSockets = new Map(); // userId -> Set<socketId>
 
@@ -92,11 +93,11 @@ export function registerChat(io, socket) {
       const hasAttachment = attachment && attachment.url;
       if (!hasContent && !hasAttachment) return cb?.({ error: 'Empty' });
 
-      const msg = await prisma.directMessage.create({
+      const stored = await prisma.directMessage.create({
         data: {
           conversationId,
           senderId: user.id,
-          content: content || '',
+          content: seal(content || ''),
           attachmentUrl: attachment?.url ?? null,
           attachmentName: attachment?.name ?? null,
           attachmentType: attachment?.type ?? null,
@@ -104,6 +105,11 @@ export function registerChat(io, socket) {
         },
         include: { sender: { select: { id: true, username: true } } },
       });
+
+      // The row is sealed; what goes over the wire is not. Clients hold no key
+      // — the ciphertext exists to protect the database, not the socket, which
+      // is already TLS.
+      const msg = { ...stored, content: content || '' };
 
       await prisma.conversation.update({
         where: { id: conversationId },

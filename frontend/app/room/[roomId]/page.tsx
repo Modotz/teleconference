@@ -54,6 +54,7 @@ import LayoutSettingsPanel from '@/components/LayoutSettingsPanel';
 import PollsPanel from '@/components/PollsPanel';
 import Whiteboard, { type Stroke } from '@/components/Whiteboard';
 import { useRecorder } from '@/hooks/useRecorder';
+import { MIN_PASSPHRASE_LENGTH } from '@/lib/recordingCrypto';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { useVirtualBackground } from '@/hooks/useVirtualBackground';
 
@@ -260,6 +261,11 @@ export default function RoomPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const recorder = useRecorder();
+  // Passphrase gate shown before recording starts (see startRecording).
+  const [recPrompt, setRecPrompt] = useState(false);
+  const [recPass, setRecPass] = useState('');
+  const [recPass2, setRecPass2] = useState('');
+  const [recPassError, setRecPassError] = useState<string | null>(null);
 
   const spotlight = useMemo(() => {
     for (const r of remotes.values()) {
@@ -1500,6 +1506,34 @@ export default function RoomPage({
       setError('No stream available to record');
       return;
     }
+    // Ask for a passphrase first — the file lands in the user's Downloads
+    // folder, so it should not be readable by whoever finds the laptop.
+    setRecPass('');
+    setRecPass2('');
+    setRecPassError(null);
+    setRecPrompt(true);
+  }
+
+  function confirmRecordingPassphrase() {
+    if (recPass.length < MIN_PASSPHRASE_LENGTH) {
+      setRecPassError(`Use at least ${MIN_PASSPHRASE_LENGTH} characters.`);
+      return;
+    }
+    if (recPass !== recPass2) {
+      setRecPassError('The two passphrases do not match.');
+      return;
+    }
+    setRecPrompt(false);
+    startRecording(recPass);
+    setRecPass('');
+    setRecPass2('');
+  }
+
+  function startRecording(passphrase?: string) {
+    if (!localStreamRef.current) {
+      setError('No stream available to record');
+      return;
+    }
     // Composite everyone (cameras + screen share) + mixed audio.
     const composite = createCompositeStream({
       getVideoSources: () => {
@@ -1542,7 +1576,7 @@ export default function RoomPage({
       },
     });
     compositeRef.current = composite;
-    recorder.start(composite.stream, `room-${roomId.slice(0, 8)}.webm`);
+    void recorder.start(composite.stream, `room-${roomId.slice(0, 8)}.webm`, passphrase);
   }
 
   const remoteList = Array.from(remotes.values());
@@ -1964,6 +1998,90 @@ export default function RoomPage({
         </div>
       )}
 
+      {/* Recording passphrase gate */}
+      {recPrompt && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm rounded-lg bg-slate-900 border border-slate-700 p-5 text-slate-100">
+            <div className="flex items-center gap-2 font-semibold">
+              <Lock className="w-4 h-4 text-brand-300" />
+              Encrypt this recording
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              The recording is saved to your device as{' '}
+              <code className="text-slate-300">.webm.enc</code>. You will need this
+              passphrase to open it — there is no way to recover it.
+            </p>
+
+            <input
+              type="password"
+              autoFocus
+              value={recPass}
+              onChange={(e) => {
+                setRecPass(e.target.value);
+                setRecPassError(null);
+              }}
+              placeholder={`Passphrase (min ${MIN_PASSPHRASE_LENGTH} characters)`}
+              className="mt-4 w-full rounded bg-slate-800 border border-slate-700 px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:border-brand-500"
+            />
+            <input
+              type="password"
+              value={recPass2}
+              onChange={(e) => {
+                setRecPass2(e.target.value);
+                setRecPassError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') confirmRecordingPassphrase();
+              }}
+              placeholder="Repeat passphrase"
+              className="mt-2 w-full rounded bg-slate-800 border border-slate-700 px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:border-brand-500"
+            />
+
+            {recPassError && (
+              <div className="mt-2 text-xs text-red-400">{recPassError}</div>
+            )}
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setRecPrompt(false)}
+                className="px-3 py-1.5 text-sm rounded bg-slate-800 hover:bg-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  // Escape hatch for someone who just wants a file they can
+                  // double-click. Unencrypted, and labelled as such.
+                  setRecPrompt(false);
+                  startRecording(undefined);
+                }}
+                className="px-3 py-1.5 text-sm rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+              >
+                Record without encryption
+              </button>
+              <button
+                onClick={confirmRecordingPassphrase}
+                className="px-3 py-1.5 text-sm rounded bg-brand-600 hover:bg-brand-500 text-white font-medium"
+              >
+                Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {recorder.error && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[70] max-w-sm rounded bg-red-600 text-white text-sm px-4 py-2 shadow-lg">
+          {recorder.error}
+          <button
+            onClick={recorder.clearError}
+            className="ml-3 underline underline-offset-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="px-3 sm:px-6 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -1990,6 +2108,9 @@ export default function RoomPage({
             <span className="flex items-center gap-1.5 text-xs text-red-400 shrink-0">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               {formatTime(recorder.elapsed)}
+              {recorder.encrypted && (
+                <Lock className="w-3 h-3" aria-label="Recording is encrypted" />
+              )}
             </span>
           )}
         </div>

@@ -21,7 +21,11 @@ A multi-party teleconference application using:
 - Text chat per room (persisted in DB) with **emoji**, **image**, and **file attachments** (up to 25 MB)
 - Chat history reloads when you rejoin a room
 - **Screen sharing** with system audio (when supported)
-- **Local recording** (client-side MediaRecorder → `.webm` download)
+- **Local recording** (client-side MediaRecorder → `.webm` download), optionally
+  **passphrase-encrypted** in the browser; reopen at `/recording/decrypt`
+- **Encryption at rest**: chat bodies sealed in Postgres and attachments sealed
+  on disk with AES-256; attachment downloads require authorisation — see
+  [Encryption](#encryption)
 - **Layout settings**: grid, spotlight, sidebar; pin participant; mirror self; toggle self-view & names
 - **Raise hand** with bouncing badge on tile + dedicated control button
 - **Active speaker detection** (server-side AudioLevelObserver) — green ring on speaking tile, auto-spotlights speaker if no pin
@@ -75,11 +79,16 @@ docker compose up -d postgres
 cd backend
 Copy-Item .env.example .env
 npm install
+npm run keygen          # paste the output into CONTENT_KEY_B64 in .env
 npx prisma migrate dev --name init
 npm run dev
 ```
 
 Backend runs on `http://localhost:4000`.
+
+`CONTENT_KEY_B64` is the key that encrypts chat bodies and attachments — see
+[Encryption](#encryption). It is required when `NODE_ENV=production`; without
+it in dev the server starts but stores everything in plaintext and says so.
 
 ### 3. Frontend
 
@@ -157,6 +166,81 @@ link only, which is also how invitees who never created the room get in.
 
 Run `npx prisma migrate dev --name room_scheduling` after pulling these
 changes (adds `description` + `scheduledAt` to `Room`).
+
+## Encryption
+
+### What is protected
+
+| Layer | How | Who can read it |
+|---|---|---|
+| Live audio/video | DTLS-SRTP, built into WebRTC | Endpoints + the SFU |
+| Signaling & API | HTTPS / WSS (see [HTTPS.md](HTTPS.md)) | Endpoints + the server |
+| Chat bodies in Postgres | AES-256-GCM, per-message IV | The server |
+| Attachments on disk | AES-256-CTR, per-file IV | The server |
+| Downloaded recordings | AES-256-GCM from a passphrase | Whoever knows the passphrase |
+
+This is **encryption at rest**, not end-to-end. The server holds the key and
+can read chat and attachments — which is what keeps server-side search,
+notification previews and history-on-a-new-device working. What it defends
+against is a stolen database dump, a leaked backup, or someone with `psql` or
+filesystem access. If you need the server to be unable to read the content,
+that is a different design (per-conversation keys wrapped to each member's
+public key, or MLS) and a different set of trade-offs.
+
+### The key
+
+`CONTENT_KEY_B64` in `backend/.env` — 32 random bytes, base64. Generate with
+`npm run keygen`.
+
+**Losing it means losing every message and attachment.** Keep a copy somewhere
+other than the server, and rotate it independently of `JWT_SECRET`. Sealed
+values carry a `v1.` prefix so a future key rotation can decrypt old rows with
+the old key and rewrite them with the new one.
+
+### Attachments
+
+`/uploads/<uuid>.bin` used to be a plain static mount: anyone with the URL
+could download any attachment, signed in or not. It is now an authorised route
+that decrypts on the fly. Access follows the message the file belongs to —
+room attachments for that room's people, conversation attachments for that
+conversation's members, and the uploader before any message references it.
+
+Because `<img>` and download links cannot send an `Authorization` header, the
+JWT is passed as `?token=` on this route only.
+
+Known gap: guest tokens carry no room id, so any valid guest token opens any
+room attachment. Stamp `roomId` into the guest token if that matters to you.
+
+### Recordings
+
+Recording still happens in the browser and the file still never touches the
+server — so the risk is the `.webm` sitting in someone's Downloads folder.
+Pressing **Record** now asks for a passphrase; each chunk is sealed as it comes
+off `MediaRecorder` and the download is a `.webm.enc`. There is a
+**Record without encryption** button for when you just want a double-clickable
+file.
+
+Open one at **`/recording/decrypt`** — file plus passphrase, decrypted in the
+browser, nothing uploaded. It works offline.
+
+Chunks are numbered and authenticated, so a `.webm.enc` that has been edited,
+truncated or reordered fails to decrypt rather than producing a corrupt video.
+There is no passphrase recovery.
+
+### Migrating existing data
+
+Switching the key on only affects new writes. To seal what is already there:
+
+```powershell
+cd backend
+npm run encrypt:backfill -- --dry   # report only
+npm run encrypt:backfill            # rewrite messages + uploads
+```
+
+Back up the database and `backend/uploads/` first — it rewrites both. It is
+idempotent, so it is safe to re-run after an interruption. Old attachments are
+renamed from `<uuid>.png` to `<uuid>.bin` and the messages pointing at them are
+updated in the same pass.
 
 ## Mediasoup ports
 
@@ -294,7 +378,9 @@ navigate to `/room/[id]`. The call overlay handles everything inline.
 - `Conversation` { id, name, isGroup, ownerId, ... }
 - `ConversationMember` { conversationId, userId, joinedAt, lastReadAt }
 - `DirectMessage` { id, conversationId, senderId, content,
-  attachmentUrl/Name/Type/Size, createdAt }
+  attachmentUrl/Name/Type/Size, createdAt } — `content` is stored sealed
+- `UploadedFile` { filename, uploaderId, mimeType, size, createdAt } — lets the
+  uploader read a file before any message references it
 
 Run `npx prisma migrate dev --name chat` after pulling these changes.
 
