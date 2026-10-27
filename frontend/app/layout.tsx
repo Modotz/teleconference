@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { APP_NAME } from '@/lib/config';
+import MeetingHost from '@/components/MeetingHost';
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <MeetingHost>{children}</MeetingHost>
+      </body>
     </html>
   );
 }
