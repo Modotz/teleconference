@@ -26,6 +26,8 @@ router.get('/auth/me', authMiddleware, requireAccount, authCtrl.me);
 // needs it to tell the host apart from everyone else.
 router.post('/rooms', authMiddleware, requireAccount, roomCtrl.createRoom);
 router.get('/rooms', authMiddleware, requireAccount, roomCtrl.listRooms);
+// Must precede /rooms/:id or "history" is taken as a room id.
+router.get('/rooms/history', authMiddleware, requireAccount, roomCtrl.roomHistory);
 router.get('/rooms/:id', authMiddleware, roomCtrl.getRoom);
 router.post('/rooms/:id/end', authMiddleware, requireAccount, roomCtrl.endRoom);
 router.post('/rooms/:id/invite', authMiddleware, requireAccount, roomCtrl.inviteToRoom);

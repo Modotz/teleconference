@@ -3,6 +3,7 @@
 import { Device } from 'mediasoup-client';
 import type { Transport, Producer, Consumer } from 'mediasoup-client/types';
 import type { Socket } from 'socket.io-client';
+import { MIC_PRODUCER_OPTIONS } from './mediasoupClient';
 
 /**
  * Audio-only voice call client. Piggybacks on the existing socket (chat
@@ -76,6 +77,8 @@ export class CallClient {
     if (audioTrack && this.sendTransport) {
       this.audioProducer = await this.sendTransport.produce({
         track: audioTrack,
+        ...MIC_PRODUCER_OPTIONS,
+        encodings: [...MIC_PRODUCER_OPTIONS.encodings],
         appData: { source: 'mic-call' },
       });
     }

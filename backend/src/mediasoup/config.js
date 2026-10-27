@@ -17,6 +17,9 @@ export const mediasoupConfig = {
         mimeType: 'audio/opus',
         clockRate: 48000,
         channels: 2,
+        // In-band FEC lets the receiver rebuild lost packets instead of
+        // concealing them — the "robotic voice" on lossy links.
+        parameters: { useinbandfec: 1 },
       },
       {
         kind: 'video',

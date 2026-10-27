@@ -49,6 +49,55 @@ export async function listRooms(req, res) {
   res.json({ rooms });
 }
 
+/**
+ * Meetings the current user actually joined (instant or scheduled, any owner),
+ * newest first. Built from Participant rows — one per join — over the last
+ * 30 days.
+ */
+export async function roomHistory(req, res) {
+  const since = new Date(Date.now() - 30 * 86400000);
+  const joins = await prisma.participant.groupBy({
+    by: ['roomId'],
+    where: { userId: req.user.id, joinedAt: { gte: since } },
+    _max: { joinedAt: true },
+    orderBy: { _max: { joinedAt: 'desc' } },
+    take: 50,
+  });
+  if (!joins.length) return res.json({ meetings: [] });
+
+  const roomIds = joins.map((j) => j.roomId);
+  const [rooms, people] = await Promise.all([
+    prisma.room.findMany({
+      where: { id: { in: roomIds } },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        endedAt: true,
+        owner: { select: { id: true, username: true } },
+      },
+    }),
+    // Distinct signed-in attendees per room (a rejoin adds another row).
+    prisma.participant.groupBy({
+      by: ['roomId', 'userId'],
+      where: { roomId: { in: roomIds } },
+    }),
+  ]);
+
+  const byId = new Map(rooms.map((r) => [r.id, r]));
+  const counts = new Map();
+  for (const p of people) counts.set(p.roomId, (counts.get(p.roomId) || 0) + 1);
+
+  const meetings = joins
+    .filter((j) => byId.has(j.roomId))
+    .map((j) => ({
+      ...byId.get(j.roomId),
+      lastJoinedAt: j._max.joinedAt,
+      participantCount: counts.get(j.roomId) || 1,
+    }));
+  res.json({ meetings });
+}
+
 export async function getRoom(req, res) {
   const room = await prisma.room.findUnique({
     where: { id: req.params.id },

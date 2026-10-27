@@ -5,6 +5,25 @@ import { getServerBase } from './config';
 
 export type MediaSource = 'camera' | 'mic' | 'screen-video' | 'screen-audio';
 
+/**
+ * Microphone producer settings tuned for weak connections: in-band FEC so
+ * lost packets are rebuilt rather than concealed (the "robotic voice"), DTX
+ * to send almost nothing during silence, mono, and top network priority so
+ * voice wins over video when bandwidth runs short.
+ */
+export const MIC_PRODUCER_OPTIONS = {
+  codecOptions: { opusFec: true, opusDtx: true, opusStereo: false },
+  encodings: [{ priority: 'high', networkPriority: 'high' }],
+} as const;
+
+// Camera simulcast: the SFU forwards each receiver the highest layer its
+// link can carry, so one weak viewer no longer starves everyone's audio.
+const CAMERA_ENCODINGS = [
+  { rid: 'r0', scaleResolutionDownBy: 4, maxBitrate: 150_000 },
+  { rid: 'r1', scaleResolutionDownBy: 2, maxBitrate: 500_000 },
+  { rid: 'r2', scaleResolutionDownBy: 1, maxBitrate: 1_200_000 },
+];
+
 export interface RemoteTrackInfo {
   peerId: string;
   username: string;
@@ -528,6 +547,8 @@ export class RoomClient {
         // the source the background processor reads from. We manage track
         // lifetime ourselves (stopped on leave), so opt out.
         stopTracks: false,
+        encodings: CAMERA_ENCODINGS,
+        codecOptions: { videoGoogleStartBitrate: 1000 },
         appData: { source: 'camera' },
       });
       this.producers.set('camera', producer);
@@ -535,6 +556,8 @@ export class RoomClient {
     if (audioTrack) {
       const producer = await this.sendTransport.produce({
         track: audioTrack,
+        ...MIC_PRODUCER_OPTIONS,
+        encodings: [...MIC_PRODUCER_OPTIONS.encodings],
         appData: { source: 'mic' },
       });
       this.producers.set('mic', producer);

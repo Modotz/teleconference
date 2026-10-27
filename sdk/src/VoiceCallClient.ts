@@ -148,6 +148,10 @@ export class VoiceCallClient {
       if (track) {
         this.micProducer = await this.sendTransport!.produce({
           track,
+          // FEC rebuilds lost packets (no "robotic voice" on weak links), DTX
+          // saves bandwidth in silence, high priority keeps voice flowing.
+          codecOptions: { opusFec: true, opusDtx: true, opusStereo: false },
+          encodings: [{ priority: 'high', networkPriority: 'high' }],
           appData: { source: 'mic' },
         });
       }

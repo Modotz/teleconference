@@ -124,6 +124,7 @@ export const api = {
   me: () => request<{ user: any }>('/auth/me'),
 
   listRooms: () => request<{ rooms: any[] }>('/rooms'),
+  roomHistory: () => request<{ meetings: any[] }>('/rooms/history'),
   // Anonymous guest access: exchange a display name for a short-lived token so
   // someone without an account can join a meeting by name only.
   guestLogin: (displayName: string) =>

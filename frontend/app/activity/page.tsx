@@ -19,6 +19,15 @@ interface Room {
   durationMinutes?: number | null;
   createdAt: string;
 }
+interface PastMeeting {
+  id: string;
+  name: string;
+  isActive: boolean;
+  endedAt: string | null;
+  owner: { id: string; username: string } | null;
+  lastJoinedAt: string;
+  participantCount: number;
+}
 interface Conversation {
   id: string;
   name: string | null;
@@ -50,6 +59,7 @@ export default function ActivityPage() {
   const router = useRouter();
   const [me, setMe] = useState<{ id: string; username: string } | null>(null);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [history, setHistory] = useState<PastMeeting[]>([]);
   const [convos, setConvos] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,11 +77,13 @@ export default function ActivityPage() {
     if (userStr) setMe(JSON.parse(userStr));
     (async () => {
       try {
-        const [r, c] = await Promise.all([
+        const [r, h, c] = await Promise.all([
           api.listRooms(),
+          api.roomHistory().catch(() => ({ meetings: [] })),
           api.listConversations().catch(() => ({ conversations: [] })),
         ]);
         setRooms(r.rooms || []);
+        setHistory(h.meetings || []);
         setConvos((c as any).conversations || []);
       } catch (err: any) {
         if (err?.status === 401) {
@@ -96,11 +108,30 @@ export default function ActivityPage() {
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
 
-    // Scheduled meetings (upcoming, or ended within the last 2 days).
+    // Meetings the user joined (instant or scheduled).
+    const joined = new Set<string>();
+    for (const m of history) {
+      joined.add(m.id);
+      const host =
+        m.owner?.id === me?.id ? 'You hosted' : `Hosted by ${m.owner?.username || '?'}`;
+      const people = `${m.participantCount} ${m.participantCount === 1 ? 'person' : 'people'}`;
+      out.push({
+        key: `hist-${m.id}`,
+        kind: 'meeting',
+        time: new Date(m.lastJoinedAt).getTime(),
+        title: m.name,
+        text: `${host} · ${people}${m.isActive ? '' : ' · Ended'}`,
+        onClick: () => router.push(`/room/${m.id}`),
+      });
+    }
+
+    // Scheduled meetings (upcoming, or ended within the last 2 days) — past
+    // ones are skipped when the history entry above already covers them.
     for (const r of rooms) {
       if (!r.scheduledAt) continue;
       const t = new Date(r.scheduledAt).getTime();
       if (t < now - 2 * 86400000) continue;
+      if (t < now && joined.has(r.id)) continue;
       out.push({
         key: `room-${r.id}`,
         kind: 'meeting',
@@ -137,7 +168,7 @@ export default function ActivityPage() {
     out.sort((a, b) => b.time - a.time);
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rooms, convos, me, now]);
+  }, [rooms, history, convos, me, now]);
 
   const shown = items.filter((i) =>
     filter === 'all'
