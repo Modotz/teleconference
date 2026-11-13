@@ -13,7 +13,7 @@ export interface ChatMessage {
   attachmentType?: string | null;
   attachmentSize?: number | null;
   createdAt: string;
-  sender?: { id: string; username: string };
+  sender?: { id: string; username: string; fullName?: string | null };
   /** 'text' | 'system' | 'deleted' | app-defined */
   type?: string;
 }

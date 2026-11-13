@@ -15,6 +15,8 @@ interface Props {
     attachmentSize?: number | null;
     createdAt: string;
   };
+  /** Body only: no name/time row (the chat page draws its own bubble chrome). */
+  bare?: boolean;
 }
 
 function formatSize(bytes: number) {
@@ -23,7 +25,7 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function ChatMessage({ message }: Props) {
+export default function ChatMessage({ message, bare }: Props) {
   const [lightbox, setLightbox] = useState(false);
 
   const isImage = message.attachmentType?.startsWith('image/');
@@ -32,6 +34,7 @@ export default function ChatMessage({ message }: Props) {
 
   return (
     <div>
+      {!bare && (
       <div className="flex items-baseline gap-2">
         <span className="text-brand-600 dark:text-brand-300 font-medium">{message.username}</span>
         <span className="text-xs text-gray-400 dark:text-slate-500">
@@ -41,8 +44,9 @@ export default function ChatMessage({ message }: Props) {
           })}
         </span>
       </div>
+      )}
 
-      {message.content && (
+      {message.content && !bare && (
         <div className="text-gray-800 dark:text-slate-200 break-words whitespace-pre-wrap">
           {message.content}
         </div>

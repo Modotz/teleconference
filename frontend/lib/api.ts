@@ -184,6 +184,11 @@ export const api = {
     request<{ messages: any[] }>(
       `/conversations/${id}/messages${before ? `?before=${encodeURIComponent(before)}` : ''}`
     ),
+  /** Search message text across your chats (server decrypts the newest messages). */
+  searchMessages: (q: string) =>
+    request<{ messages: any[]; truncated: boolean }>(
+      `/messages/search?q=${encodeURIComponent(q)}&limit=30`
+    ),
   addMember: (id: string, userId: string) =>
     request<{ conversation: any }>(`/conversations/${id}/members`, {
       method: 'POST',
