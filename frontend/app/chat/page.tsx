@@ -27,7 +27,8 @@ import {
 } from 'lucide-react';
 import MessageActions, { type MessageAction } from '@/components/MessageActions';
 import { ForwardDialog, DeleteDialog, ReceiptsDialog, ReportDialog } from '@/components/ChatMessageDialogs';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { jakarta } from '@/lib/fonts';
+import Avatar from '@/components/Avatar';
 import { api, uploadFile, type UploadedAttachment } from '@/lib/api';
 import { ChatClient, type ChatMessage, type CallInvite } from '@/lib/chatClient';
 import ChatMessageComponent from '@/components/ChatMessage';
@@ -39,7 +40,6 @@ import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
 type ListFilter = 'all' | 'unread' | 'direct' | 'group' | 'announcement';
 const FILTERS: { key: ListFilter; label: string }[] = [
@@ -1523,29 +1523,6 @@ function aggregateReactions(list: { userId: string; emoji: string }[], myId: str
 /** Full name from HR data when known, else the username. */
 function senderName(m: ChatMessage): string {
   return m.sender?.fullName || m.sender?.username || '?';
-}
-
-const AVATAR_COLORS = ['#a3264b', '#3b3fa8', '#3d7f6e', '#46505b', '#7c3a9e', '#b45309', '#1f6f9e'];
-
-/** Initials on a colour that stays the same for the same person/chat. */
-function Avatar({ seed, label, group }: { seed: string; label: string; group?: boolean }) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const color = AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-  const initials = label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join('');
-  return (
-    <div
-      className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
-      style={{ background: color }}
-    >
-      {group ? <Users className="w-5 h-5" /> : initials || '?'}
-    </div>
-  );
 }
 
 function OfficialBadge() {

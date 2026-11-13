@@ -122,7 +122,7 @@ function RailItem({
       title={label}
       className={`relative w-full flex flex-col items-center gap-1 py-2 rounded-lg transition-colors ${
         active
-          ? 'text-white'
+          ? 'text-brand-600 dark:text-white'
           : disabled
           ? 'text-gray-400 dark:text-slate-600 cursor-default'
           : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-200 dark:hover:bg-slate-800'
