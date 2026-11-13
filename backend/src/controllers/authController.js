@@ -3,14 +3,8 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../config/prisma.js';
 import { sendMail, appUrl } from '../lib/mailer.js';
-
-function signToken(user) {
-  return jwt.sign(
-    { id: user.id, email: user.email, username: user.username },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
-}
+import { issueSessionToken, revokeSessions } from '../lib/sessions.js';
+import { PROFILE_SELECT } from './userController.js';
 
 const randomToken = () => crypto.randomBytes(32).toString('hex');
 
@@ -166,8 +160,11 @@ export async function login(req, res) {
       code: 'unverified',
     });
   }
+  if (user.active === false) {
+    return res.status(403).json({ error: 'This account has been deactivated.', code: 'inactive' });
+  }
 
-  const token = signToken(user);
+  const token = await issueSessionToken(user, req);
   res.json({
     user: { id: user.id, email: user.email, username: user.username },
     token,
@@ -232,8 +229,11 @@ export async function googleLogin(req, res) {
       select: { id: true, email: true, username: true },
     });
   }
+  if (user.active === false) {
+    return res.status(403).json({ error: 'This account has been deactivated.', code: 'inactive' });
+  }
 
-  const token = signToken(user);
+  const token = await issueSessionToken(user, req);
   res.json({
     user: { id: user.id, email: user.email, username: user.username },
     token,
@@ -243,7 +243,39 @@ export async function googleLogin(req, res) {
 export async function me(req, res) {
   const user = await prisma.user.findUnique({
     where: { id: req.user.id },
-    select: { id: true, email: true, username: true, createdAt: true },
+    select: { ...PROFILE_SELECT, email: true, createdAt: true },
   });
   res.json({ user });
+}
+
+/** Ends this device's session server-side (the token stops working at once). */
+export async function logout(req, res) {
+  if (req.user.sid) await revokeSessions({ id: req.user.sid }, req.user.id, 'logout');
+  res.json({ ok: true });
+}
+
+/** The caller's active sessions, one per signed-in device. */
+export async function listSessions(req, res) {
+  const sessions = await prisma.session.findMany({
+    where: { userId: req.user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { lastSeenAt: 'desc' },
+    select: { id: true, deviceType: true, deviceName: true, createdAt: true, lastSeenAt: true, expiresAt: true },
+  });
+  res.json({ sessions: sessions.map((s) => ({ ...s, current: s.id === req.user.sid })) });
+}
+
+export async function revokeSession(req, res) {
+  const n = await revokeSessions({ id: req.params.id, userId: req.user.id }, req.user.id, 'user');
+  if (!n) return res.status(404).json({ error: 'Session not found' });
+  res.json({ ok: true });
+}
+
+/** Sign out every other device. */
+export async function revokeOtherSessions(req, res) {
+  const n = await revokeSessions(
+    { userId: req.user.id, ...(req.user.sid ? { NOT: { id: req.user.sid } } : {}) },
+    req.user.id,
+    'user'
+  );
+  res.json({ ok: true, revoked: n });
 }

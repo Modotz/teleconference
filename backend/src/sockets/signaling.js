@@ -14,8 +14,9 @@ import {
 import prisma from '../config/prisma.js';
 import { registerChat, registerUserSocket, bindAppEvents } from './chatSocket.js';
 import { seal, open } from '../lib/contentCrypto.js';
-import { registerCall } from './callSocket.js';
+import { registerCall, handleCallPeerGone } from './callSocket.js';
 import { registerSdkCall } from './sdkCallSocket.js';
+import { appEvents } from '../events.js';
 
 export function registerSignaling(io) {
   bindAppEvents(io);
@@ -95,7 +96,7 @@ export function registerSignaling(io) {
    *  - `token`       → a logged-in user (JWT from /auth/login)
    *  - `accessToken` → a third-party SDK guest (call access token)
    */
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const auth = socket.handshake.auth || {};
       if (auth.accessToken) {
@@ -103,12 +104,20 @@ export function registerSignaling(io) {
         return next();
       }
       if (auth.token) {
-        socket.data.user = verifyToken(auth.token);
+        socket.data.user = await verifyToken(auth.token);
         return next();
       }
       return next(new Error('No token'));
     } catch (err) {
-      next(new Error('Invalid token'));
+      next(new Error(err.code === 'session_revoked' ? 'Session revoked' : 'Invalid token'));
+    }
+  });
+
+  // A revoked session loses its live sockets too, not just future requests.
+  appEvents.on('sessionsRevoked', ({ sids, reason }) => {
+    for (const sid of sids) {
+      io.to(`session:${sid}`).emit('session:revoked', { reason });
+      setTimeout(() => io.in(`session:${sid}`).disconnectSockets(true), 200);
     }
   });
 
@@ -125,6 +134,7 @@ export function registerSignaling(io) {
 
     let currentRoomId = null;
     const roomCtx = { setCurrentRoom: (id) => { currentRoomId = id; } };
+    if (user?.sid) socket.join(`session:${user.sid}`);
 
     if (isSdkGuest) {
       // ---- Third-party SDK guest: voice-call events only ----
@@ -275,8 +285,10 @@ export function registerSignaling(io) {
         addPeer(roomId, peer);
 
         // Guests aren't DB users — skip the participant record for them.
+        // Breakout ids ("<main>::bo::<n>") have no Room row, so attendance is
+        // recorded against the main room (finding A14: FK violation).
         if (!user.guest) {
-          await prisma.participant.create({ data: { roomId, userId: user.id } });
+          await prisma.participant.create({ data: { roomId: mainOf(roomId), userId: user.id } });
         }
 
         socket.to(roomId).emit('peerJoined', {
@@ -1017,7 +1029,7 @@ export function registerSignaling(io) {
 
         // Guests aren't DB users, so their messages are broadcast live but not
         // persisted (they won't appear in history for later joiners).
-        const msg = user.guest
+        const msg = user.guest || isBreakoutId(currentRoomId)
           ? {
               id: 'g:' + Math.random().toString(36).slice(2) + Date.now().toString(36),
               content: content || '',
@@ -1071,7 +1083,7 @@ export function registerSignaling(io) {
 
       // SDK guest: just remove the peer and notify others
       if (isSdkGuest) {
-        socket.to(currentRoomId).emit('peerLeft', { peerId: socket.id });
+        socket.to(currentRoomId).emit('peerLeft', { peerId: socket.id, reason: 'disconnected' });
         removePeer(currentRoomId, socket.id);
         return;
       }
@@ -1084,8 +1096,14 @@ export function registerSignaling(io) {
         raised: false,
         raisedAt: null,
       });
-      socket.to(currentRoomId).emit('peerLeft', { peerId: socket.id });
+      socket.to(currentRoomId).emit('peerLeft', { peerId: socket.id, reason: 'disconnected' });
       removePeer(currentRoomId, socket.id);
+
+      // In-app voice call: end it if this was the last one in (finding A7).
+      if (currentRoomId.startsWith('call:')) {
+        handleCallPeerGone(io, currentRoomId);
+        return;
+      }
 
       // When the room empties, reset the meeting clock for the next session.
       if (!getRoom(currentRoomId) || getRoom(currentRoomId).peers.size === 0) {
@@ -1096,7 +1114,7 @@ export function registerSignaling(io) {
       if (user.guest) return;
       try {
         const last = await prisma.participant.findFirst({
-          where: { roomId: currentRoomId, userId: user.id, leftAt: null },
+          where: { roomId: mainOf(currentRoomId), userId: user.id, leftAt: null },
           orderBy: { joinedAt: 'desc' },
         });
         if (last) {

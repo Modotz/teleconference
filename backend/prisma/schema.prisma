@@ -8,50 +8,102 @@ datasource db {
 }
 
 model User {
-  id                   String               @id @default(uuid())
-  email                String               @unique
-  username             String               @unique
-  password             String?
-  googleId             String?              @unique
-  emailVerified        Boolean              @default(false)
-  verifyToken          String?
-  resetToken           String?
-  resetTokenExp        DateTime?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  rooms                Room[]               @relation("RoomOwner")
-  participants         Participant[]
-  messages             Message[]
-  conversationsOwned   Conversation[]       @relation("ConversationOwner")
-  conversationMembers  ConversationMember[]
-  directMessages       DirectMessage[]
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  password      String?
+  googleId      String?   @unique
+  emailVerified Boolean   @default(false)
+  verifyToken   String?
+  resetToken    String?
+  resetTokenExp DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // ---- Employee profile (AK-1..AK-3). Filled by an HR import
+  // (scripts/import-employees.js) until a live HR integration exists.
+  orgId     String?
+  org       Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  fullName  String?
+  nik       String?
+  title     String?
+  division  String?
+  company   String?
+  site      String?
+  managerId String?
+  photoUrl  String?
+  /// false = left the company: login refused, sessions revoked.
+  active    Boolean       @default(true)
+  /// e.g. ["staff"], ["manager"], ["pic_site"], ["hr_admin"], ["it_admin"]
+  roles     String[]      @default([])
+  /// System accounts (PASTI Asisten, announcement senders) — hidden from the directory.
+  isSystem  Boolean       @default(false)
+
+  rooms               Room[]               @relation("RoomOwner")
+  participants        Participant[]
+  messages            Message[]
+  conversationsOwned  Conversation[]       @relation("ConversationOwner")
+  conversationMembers ConversationMember[]
+  directMessages      DirectMessage[]
+  sessions            Session[]
+  reactions           MessageReaction[]
+  starred             StarredMessage[]
+
+  @@index([orgId])
+  @@index([nik])
+}
+
+/// A company. Directory search only returns users of the caller's organization.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+  sites     Site[]
+}
+
+/// One signed-in device. The JWT carries its id (`sid`); a revoked session's
+/// token stops working immediately, even before it expires.
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 'desktop' | 'mobile' | 'web'
+  deviceType String    @default("web")
+  deviceName String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([userId])
 }
 
 model Room {
-  id           String        @id @default(uuid())
-  name         String
-  description  String?
-  ownerId      String
-  owner        User          @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  isActive     Boolean       @default(true)
-  scheduledAt  DateTime?
-  durationMinutes Int         @default(60)
-  createdAt    DateTime      @default(now())
-  endedAt      DateTime?
-  participants Participant[]
-  messages     Message[]
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  ownerId         String
+  owner           User          @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  isActive        Boolean       @default(true)
+  scheduledAt     DateTime?
+  durationMinutes Int           @default(60)
+  createdAt       DateTime      @default(now())
+  endedAt         DateTime?
+  participants    Participant[]
+  messages        Message[]
 
   @@index([ownerId])
 }
 
 model Participant {
-  id        String    @id @default(uuid())
-  roomId    String
-  userId    String
-  joinedAt  DateTime  @default(now())
-  leftAt    DateTime?
-  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id       String    @id @default(uuid())
+  roomId   String
+  userId   String
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([roomId])
   @@index([userId])
@@ -75,34 +127,55 @@ model Message {
 }
 
 model Conversation {
-  id        String               @id @default(uuid())
-  name      String?
-  isGroup   Boolean              @default(false)
-  ownerId   String?
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
-  owner     User?                @relation("ConversationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  members   ConversationMember[]
-  messages  DirectMessage[]
+  id                String               @id @default(uuid())
+  name              String?
+  description       String?
+  isGroup           Boolean              @default(false)
+  ownerId           String?
+  /// 'chat' | 'announcement' | 'system' (GR-8, AS-1 — scaffold)
+  type              String               @default("chat")
+  /// Group managed from HR data; members cannot leave (GR-7 — scaffold).
+  official          Boolean              @default(false)
+  managedBy         String?
+  /// Announcement mode: only owner/admins may send (GR-2).
+  onlyAdminsCanSend Boolean              @default(false)
+  /// One pinned message per conversation (PS-10).
+  pinnedMessageId   String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  owner             User?                @relation("ConversationOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members           ConversationMember[]
+  messages          DirectMessage[]
 
   @@index([updatedAt])
 }
 
 model ConversationMember {
-  id             String       @id @default(uuid())
-  conversationId String
-  userId         String
-  joinedAt       DateTime     @default(now())
-  lastReadAt     DateTime?
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String       @id @default(uuid())
+  conversationId    String
+  userId            String
+  joinedAt          DateTime     @default(now())
+  lastReadAt        DateTime?
+  /// Delivery receipt — newest message this member's device has received (PS-2).
+  lastDeliveredAt   DateTime?
+  /// 'owner' | 'admin' | 'member' (GR-1)
+  role              String       @default("member")
+  // Per-user chat preferences, shared by phone and desktop (PC-1).
+  pinned            Boolean      @default(false)
+  mutedUntil        DateTime?
+  archived          Boolean      @default(false)
+  markedUnread      Boolean      @default(false)
+  /// Set by a group admin: may not send until then (GR-3).
+  mutedByAdminUntil DateTime?
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId])
 }
 
 model DirectMessage {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   conversationId String
   senderId       String
   content        String
@@ -110,13 +183,202 @@ model DirectMessage {
   attachmentName String?
   attachmentType String?
   attachmentSize Int?
-  createdAt      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  /// Sender-chosen id: resending the same clientId never duplicates (PS-1).
+  clientId       String?
+  /// 'text' | 'system' | 'deleted' | app-defined (voice, location, card…) (PS-4)
+  type           String            @default("text")
+  data           Json?
+  replyToId      String?
+  forwarded      Boolean           @default(false)
+  /// userIds mentioned, or "all" (PS-13)
+  mentions       String[]          @default([])
+  editedAt       DateTime?
+  /// "Delete for everyone". The sealed content stays for the audit trail but
+  /// is never sent to clients again (PS-8).
+  deletedAt      DateTime?
+  deletedById    String?
+  createdAt      DateTime          @default(now())
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        DirectMessage?    @relation("Reply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        DirectMessage[]   @relation("Reply")
+  reactions      MessageReaction[]
+  hiddenFor      MessageHidden[]
+  starredBy      StarredMessage[]
 
+  @@unique([senderId, clientId])
   @@index([conversationId])
   @@index([senderId])
   @@index([attachmentUrl])
+}
+
+/// One reaction per person per message (PS-9).
+model MessageReaction {
+  id        String        @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime      @default(now())
+  message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
+
+/// "Delete for me" (PS-8).
+model MessageHidden {
+  messageId String
+  userId    String
+  createdAt DateTime      @default(now())
+  message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+}
+
+/// Starred messages, shared by phone and desktop (PS-11).
+model StarredMessage {
+  messageId String
+  userId    String
+  createdAt DateTime      @default(now())
+  message   DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId])
+}
+
+/// A message or person reported to admins/HR (PS-12).
+model Report {
+  id             String   @id @default(uuid())
+  reporterId     String
+  messageId      String?
+  userId         String?
+  conversationId String?
+  reason         String
+  /// 'open' | 'reviewed' | 'dismissed'
+  status         String   @default("open")
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+}
+
+/// Append-only record of sensitive actions (KM-1): deletions, reports, role
+/// and membership changes, session revocations.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String
+  data       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Tahap 2 scaffold — Agenda (AG) and room booking (RU). Usable now with data
+// entered by admins; not yet connected to HR, Outlook or reminders.
+// ---------------------------------------------------------------------------
+
+model CalendarEvent {
+  id              String          @id @default(uuid())
+  ownerId         String
+  /// 'meeting' | 'activity'
+  kind            String          @default("meeting")
+  title           String
+  description     String?
+  /// 'online' | 'offline' | 'hybrid'
+  mode            String          @default("online")
+  /// Telepati meeting room for online/hybrid events.
+  roomId          String?
+  location        String?
+  category        String?
+  isPrivate       Boolean         @default(false)
+  allDay          Boolean         @default(false)
+  start           DateTime
+  end             DateTime
+  /// 'busy' | 'free'
+  showAs          String          @default("busy")
+  color           String?
+  /// iCalendar RRULE, e.g. "FREQ=WEEKLY;BYDAY=MO" (expansion is client-side for now)
+  recurrence      String?
+  reminderMinutes Int?
+  done            Boolean         @default(false)
+  cancelledAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  attendees       EventAttendee[]
+  bookings        RoomBooking[]
+
+  @@index([ownerId])
+  @@index([start])
+}
+
+model EventAttendee {
+  id          String        @id @default(uuid())
+  eventId     String
+  userId      String?
+  email       String?
+  optional    Boolean       @default(false)
+  /// 'pending' | 'yes' | 'maybe' | 'no'
+  response    String        @default("pending")
+  note        String?
+  respondedAt DateTime?
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model Site {
+  id       String         @id @default(uuid())
+  orgId    String?
+  org      Organization?  @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  name     String
+  timezone String         @default("Asia/Jakarta")
+  rooms    BookableRoom[]
+}
+
+/// A physical room that can be booked (named to avoid clashing with the
+/// video-meeting `Room`).
+model BookableRoom {
+  id         String        @id @default(uuid())
+  siteId     String
+  site       Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name       String
+  /// 'meeting' | 'operational'
+  type       String        @default("meeting")
+  capacity   Int           @default(0)
+  facilities String[]      @default([])
+  hasCamera  Boolean       @default(false)
+  /// "HH:MM" local time
+  openFrom   String        @default("07:00")
+  openTo     String        @default("18:00")
+  active     Boolean       @default(true)
+  bookings   RoomBooking[]
+
+  @@index([siteId])
+}
+
+model RoomBooking {
+  id              String         @id @default(uuid())
+  bookableRoomId  String
+  userId          String
+  eventId         String?
+  start           DateTime
+  end             DateTime
+  purpose         String?
+  note            String?
+  reminderMinutes Int?
+  cancelledAt     DateTime?
+  createdAt       DateTime       @default(now())
+  room            BookableRoom   @relation(fields: [bookableRoomId], references: [id], onDelete: Cascade)
+  event           CalendarEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([bookableRoomId, start])
+  @@index([userId])
 }
 
 /// An encrypted file on disk. Written by POST /api/upload before the message

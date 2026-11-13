@@ -37,6 +37,29 @@ export function getActiveCall(conversationId) {
   return activeCalls.get(conversationId);
 }
 
+async function broadcastEnded(io, conversationId) {
+  const members = await prisma.conversationMember.findMany({
+    where: { conversationId },
+    select: { userId: true },
+  });
+  for (const m of members) io.to(`user:${m.userId}`).emit('call:ended', { conversationId });
+}
+
+/**
+ * A call peer's socket dropped without call:leave (app killed, network gone).
+ * If nobody is left in the call, end it now instead of leaving a stale call
+ * that swallows the next ring (finding A7).
+ */
+export function handleCallPeerGone(io, callRoomIdValue) {
+  const conversationId = String(callRoomIdValue).slice('call:'.length);
+  const active = activeCalls.get(conversationId);
+  if (!active) return;
+  const room = getRoom(active.callId);
+  if (room && room.peers.size > 0) return;
+  activeCalls.delete(conversationId);
+  broadcastEnded(io, conversationId).catch((err) => console.error('call end broadcast failed', err.message));
+}
+
 export function registerCall(io, socket, ctx) {
   const user = socket.data.user;
 
@@ -51,7 +74,12 @@ export function registerCall(io, socket, ctx) {
         return cb?.({ error: 'Not a member' });
       }
 
-      const existing = activeCalls.get(conversationId);
+      let existing = activeCalls.get(conversationId);
+      // A call nobody is connected to is stale — ring afresh (finding A7).
+      if (existing && !(getRoom(existing.callId)?.peers.size > 0)) {
+        activeCalls.delete(conversationId);
+        existing = null;
+      }
       if (existing) {
         return cb?.({
           ok: true,
@@ -172,22 +200,17 @@ export function registerCall(io, socket, ctx) {
     const active = activeCalls.get(conversationId);
     if (!active) return cb?.({ ok: true });
 
-    socket.to(active.callId).emit('peerLeft', { peerId: socket.id });
+    socket.to(active.callId).emit('peerLeft', { peerId: socket.id, reason: 'left' });
     removePeer(active.callId, socket.id);
     socket.leave(active.callId);
+    ctx.setCurrentRoom(null);
 
     // If no peers remain, end the call
     const room = getRoom(active.callId);
     if (!room || room.peers.size === 0) {
       activeCalls.delete(conversationId);
       // Broadcast end so any "incoming call" toasts close
-      prisma.conversationMember
-        .findMany({ where: { conversationId }, select: { userId: true } })
-        .then((members) => {
-          for (const m of members) {
-            io.to(`user:${m.userId}`).emit('call:ended', { conversationId });
-          }
-        });
+      broadcastEnded(io, conversationId).catch((err) => console.error('call end broadcast failed', err.message));
     }
     cb?.({ ok: true });
   });

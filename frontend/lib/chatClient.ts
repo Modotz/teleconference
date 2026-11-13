@@ -14,6 +14,8 @@ export interface ChatMessage {
   attachmentSize?: number | null;
   createdAt: string;
   sender?: { id: string; username: string };
+  /** 'text' | 'system' | 'deleted' | app-defined */
+  type?: string;
 }
 
 export interface CallInvite {

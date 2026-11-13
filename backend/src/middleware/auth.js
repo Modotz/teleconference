@@ -1,10 +1,14 @@
 import jwt from 'jsonwebtoken';
+import { assertSessionAlive } from '../lib/sessions.js';
 
-function verify(token, req, res, next) {
+async function verify(token, req, res, next) {
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await verifyToken(token);
     next();
   } catch (err) {
+    if (err.code === 'session_revoked') {
+      return res.status(401).json({ error: 'Session has been revoked', code: 'session_revoked' });
+    }
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
@@ -49,6 +53,9 @@ export function requireAccount(req, res, next) {
   next();
 }
 
-export function verifyToken(token) {
-  return jwt.verify(token, process.env.JWT_SECRET);
+/** Signature + expiry, then the server-side session (if the token has one). */
+export async function verifyToken(token) {
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  await assertSessionAlive(payload);
+  return payload;
 }

@@ -231,10 +231,48 @@ In Google Cloud Console → Credentials → your Web OAuth client →
 
 ```bash
 cd /var/www/teleconference && git pull
-cd backend  && npm install && npx prisma migrate deploy && npx prisma generate
+cd backend  && npm install && npx prisma migrate deploy   # npm install also runs prisma generate
 cd ../frontend && npm install && npm run build
 pm2 restart teleconf-api teleconf-web
 ```
+
+Skipping `prisma migrate deploy` / `prisma generate` after a pull that changed
+`prisma/schema.prisma` breaks features at runtime with errors like
+`Cannot read properties of undefined (reading 'create')`.
+
+## Employee data, organizations and rooms
+
+The directory only shows people in the caller's **organization**, and user
+profiles carry HR fields (full name, NIK, title, division, manager, roles).
+Until HR is connected directly, load them from a CSV export:
+
+```bash
+cd backend
+# email*, username, fullName, nik, title, division, company, site, managerNik, roles, active
+node scripts/import-employees.js employees.csv --org "RDS" --dry-run   # preview
+node scripts/import-employees.js employees.csv --org "RDS"
+```
+
+- Re-running updates existing users (matched by email). `active=false`
+  deactivates the account: login is refused and every session is revoked.
+- `roles` is `|`-separated: `staff`, `manager`, `pic_site`, `hr_admin`, `it_admin`.
+  `hr_admin` / `it_admin` can use the admin API (`client.admin` in the SDK).
+- Users with no organization only see each other — so existing accounts keep
+  working exactly as before until they are imported.
+
+Bookable rooms (scaffold for room booking):
+
+```bash
+# site*, name*, type (meeting|operational), capacity, facilities (a|b), hasCamera, openFrom, openTo
+node scripts/import-rooms.js rooms.csv --org "RDS"
+```
+
+## Sessions
+
+Every login creates a server-side session; `POST /api/auth/logout` and the
+admin API revoke it immediately (REST and live sockets). Tokens issued before
+this release have no session id and stay valid until they expire
+(`JWT_EXPIRES_IN`, default 7 days).
 
 ## Troubleshooting
 

@@ -642,6 +642,16 @@ export default function ChatPage() {
 
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gray-100 dark:bg-slate-950">
               {(messages[activeConv.id] || []).map((m) => {
+                // "Andi added Rina", renames etc. — a note, not a bubble.
+                if (m.type === 'system') {
+                  return (
+                    <div key={m.id} className="flex justify-center">
+                      <span className="text-xs text-gray-500 dark:text-slate-400 bg-gray-200/70 dark:bg-slate-800/70 rounded-full px-3 py-1">
+                        {m.content}
+                      </span>
+                    </div>
+                  );
+                }
                 const isMe = m.sender?.id === me?.id || m.senderId === me?.id;
                 const readInfo = isMe ? computeReadStatus(m, activeConv, me?.id, readByConv) : null;
                 return (
@@ -661,6 +671,11 @@ export default function ChatPage() {
                           {m.sender.username}
                         </div>
                       )}
+                      {m.type === 'deleted' ? (
+                        <div className="italic text-sm text-gray-500 dark:text-slate-400">
+                          This message was deleted
+                        </div>
+                      ) : (
                       <ChatMessageComponent
                         message={{
                           id: m.id,
@@ -673,6 +688,7 @@ export default function ChatPage() {
                           createdAt: m.createdAt,
                         }}
                       />
+                      )}
                       {readInfo && (
                         <div className="flex justify-end mt-0.5">
                           {readInfo.allRead ? (
