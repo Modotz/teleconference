@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { apiKeyAuth } from '../middleware/apiKeyAuth.js';
 import * as calls from '../controllers/v1/callsController.js';
+import { catchAsyncErrors } from '../lib/catchAsyncErrors.js';
 
 /**
  * Public Voice Call API (v1).
@@ -8,7 +9,7 @@ import * as calls from '../controllers/v1/callsController.js';
  * Every endpoint is authenticated with an `X-Api-Key` header — intended to be
  * called from a third-party application's BACKEND, never the browser.
  */
-const router = Router();
+const router = catchAsyncErrors(Router());
 
 router.post('/calls', apiKeyAuth, calls.createCall);
 router.get('/calls/:id', apiKeyAuth, calls.getCall);

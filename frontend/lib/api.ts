@@ -29,10 +29,17 @@ export interface UploadedAttachment {
   size: number;
 }
 
+/** Must match MAX_FILE_SIZE in backend/src/middleware/upload.js. */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+const TOO_LARGE = 'File is too large — the maximum is 25 MB.';
+
 export async function uploadFile(
   file: File,
   onProgress?: (percent: number) => void
 ): Promise<UploadedAttachment> {
+  // Fail before sending megabytes the server will reject anyway.
+  if (file.size > MAX_UPLOAD_BYTES) throw new Error(TOO_LARGE);
   const token = getToken();
   const form = new FormData();
   form.append('file', file);
@@ -49,6 +56,7 @@ export async function uploadFile(
       }
     };
     xhr.onload = () => {
+      if (xhr.status === 413) return reject(new Error(TOO_LARGE));
       try {
         const data = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) resolve(data);
@@ -57,7 +65,16 @@ export async function uploadFile(
         reject(new Error(`Upload failed: ${xhr.status}`));
       }
     };
-    xhr.onerror = () => reject(new Error('Upload network error'));
+    xhr.onerror = () =>
+      reject(
+        new Error(
+          // A proxy body-size rejection (nginx 413) carries no CORS headers,
+          // so the browser reports it as a bare network error.
+          file.size > 1024 * 1024
+            ? 'Upload failed — the server rejected the file size. Ask the admin to raise client_max_body_size in Nginx.'
+            : 'Upload network error'
+        )
+      );
     xhr.send(form);
   });
 }

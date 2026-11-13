@@ -16,8 +16,15 @@ import { registerSignaling } from './sockets/signaling.js';
 import { serveUpload } from './controllers/fileController.js';
 import { authMiddlewareAllowQuery } from './middleware/auth.js';
 import { encryptionEnabled } from './lib/contentCrypto.js';
+import { catchAsyncErrors } from './lib/catchAsyncErrors.js';
 
-const app = express();
+const app = catchAsyncErrors(express());
+
+// Last line of defence: a stray rejection (e.g. in a socket handler) is
+// logged instead of taking every live meeting down with the process.
+process.on('unhandledRejection', (err) => {
+  console.error('[unhandledRejection]', err);
+});
 
 // `npm run dev` passes --http to force plain HTTP (localhost dev mode).
 // `npm run dev:https` runs without it → HTTPS if certs are present (LAN mode).
@@ -68,7 +75,22 @@ app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 app.use('/api/v1', v1Routes);
 
 app.use((err, _req, res, _next) => {
+  // multer's size cap — a client mistake, not a server fault.
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'File is too large — the maximum is 25 MB.' });
+  }
   console.error(err);
+  // Deploy mistakes that otherwise surface as a cryptic message to users.
+  if (err?.code === 'P2021' || err?.code === 'P2022') {
+    return res.status(500).json({
+      error: 'Server database is out of date — run `npx prisma migrate deploy` in backend/ and restart.',
+    });
+  }
+  if (['EACCES', 'EPERM', 'ENOENT', 'EROFS'].includes(err?.code) && err?.path) {
+    return res.status(500).json({
+      error: `Server cannot write uploads (${err.code}) — check that the upload folder exists and is writable by the app user.`,
+    });
+  }
   res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 

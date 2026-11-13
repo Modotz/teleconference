@@ -6,8 +6,9 @@ import * as convCtrl from '../controllers/conversationController.js';
 import { handleUpload } from '../controllers/uploadController.js';
 import { authMiddleware, requireAccount } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { catchAsyncErrors } from '../lib/catchAsyncErrors.js';
 
-const router = Router();
+const router = catchAsyncErrors(Router());
 
 router.get('/health', (_, res) => res.json({ ok: true }));
 
