@@ -361,10 +361,11 @@ export function registerChat(io, socket) {
         userId: user.id,
         lastReadAt: readAt.toISOString(),
       });
-      // Also notify user-rooms in case other members aren't subscribed
+      // Also notify user-rooms in case other members aren't subscribed — and
+      // our own other devices, so their unread badges clear too.
       for (const id of await memberIds(conversationId)) {
-        if (id === user.id) continue;
-        io.to(`user:${id}`).emit('chat:read', {
+        const target = id === user.id ? io.to(`user:${id}`).except(socket.id) : io.to(`user:${id}`);
+        target.emit('chat:read', {
           conversationId,
           userId: user.id,
           lastReadAt: readAt.toISOString(),

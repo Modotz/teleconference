@@ -167,6 +167,16 @@ export default function ChatPage() {
         });
       },
       onRead: ({ conversationId, userId, lastReadAt }) => {
+        // Read on one of my other devices: the chat is no longer unread here.
+        if (userId === JSON.parse(localStorage.getItem('user') || '{}').id) {
+          setUnread((prev) => {
+            if (!prev[conversationId]) return prev;
+            const next = { ...prev };
+            delete next[conversationId];
+            return next;
+          });
+          return;
+        }
         setReadByConv((prev) => {
           const next = new Map(prev);
           const inner = new Map(next.get(conversationId) || new Map());

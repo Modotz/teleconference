@@ -12,6 +12,7 @@ import {
   Moon,
   type LucideIcon,
 } from 'lucide-react';
+import { useChatUnread } from '@/hooks/useChatUnread';
 
 type RailKey = 'activity' | 'chat' | 'meet' | 'calendar';
 
@@ -26,6 +27,8 @@ export default function AppRail({
 }) {
   const router = useRouter();
   const initial = (username?.[0] || '?').toUpperCase();
+  // On the chat page itself the list shows per-chat counts instead.
+  const chatUnread = useChatUnread(active !== 'chat');
 
   // Reflect the current theme (set pre-paint by the layout script).
   const [dark, setDark] = useState(false);
@@ -62,6 +65,7 @@ export default function AppRail({
         <RailItem
           icon={MessageSquare}
           label="Chat"
+          badge={chatUnread}
           active={active === 'chat'}
           onClick={() => router.push('/chat')}
         />
@@ -101,10 +105,12 @@ function RailItem({
   label,
   active,
   disabled,
+  badge,
   onClick,
 }: {
   icon: LucideIcon;
   label: string;
+  badge?: number;
   active?: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -125,7 +131,17 @@ function RailItem({
       {active && (
         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-brand-500" />
       )}
-      <Icon className={`w-5 h-5 ${active ? 'text-brand-400' : ''}`} />
+      <span className="relative">
+        <Icon className={`w-5 h-5 ${active ? 'text-brand-400' : ''}`} />
+        {!!badge && badge > 0 && (
+          <span
+            aria-label={`${badge} pesan belum dibaca`}
+            className="absolute -top-2 -right-3 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-[18px] text-center ring-2 ring-white dark:ring-slate-900"
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </span>
       <span className="text-[10px] leading-none">{label}</span>
     </button>
   );
