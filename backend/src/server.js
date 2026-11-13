@@ -81,7 +81,11 @@ app.use((err, _req, res, _next) => {
   }
   console.error(err);
   // Deploy mistakes that otherwise surface as a cryptic message to users.
-  if (err?.code === 'P2021' || err?.code === 'P2022') {
+  // P2021/P2022: table/column missing in the DB. A validation error about an
+  // unknown field/argument: the generated Prisma Client is older than the code.
+  const staleClient =
+    err?.name === 'PrismaClientValidationError' && /Unknown (field|argument)/.test(err.message);
+  if (err?.code === 'P2021' || err?.code === 'P2022' || staleClient) {
     return res.status(500).json({
       error: 'Server database is out of date — run `npx prisma migrate deploy` in backend/ and restart.',
     });

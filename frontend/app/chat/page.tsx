@@ -76,6 +76,9 @@ export default function ChatPage() {
   } | null>(null);
 
   const clientRef = useRef<ChatClient | null>(null);
+  // The socket callbacks are created once; they read the open chat from here.
+  const activeIdRef = useRef<string | null>(null);
+  activeIdRef.current = activeId;
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -115,7 +118,12 @@ export default function ChatPage() {
         );
       },
       onNotify: (msg) => {
-        // If conversation isn't currently open, increment unread
+        // Open and on screen: it's being read right now — tell the sender
+        // instead of counting it as unread.
+        if (msg.conversationId === activeIdRef.current && document.visibilityState === 'visible') {
+          clientRef.current?.markRead(msg.conversationId).catch(() => {});
+          return;
+        }
         setUnread((prev) => ({
           ...prev,
           [msg.conversationId]: (prev[msg.conversationId] || 0) + 1,
@@ -213,6 +221,23 @@ export default function ChatPage() {
       setError(err.message);
     }
   }
+
+  // Back to the tab: what arrived in the open chat while it was hidden is read now.
+  useEffect(() => {
+    const onVisible = () => {
+      const id = activeIdRef.current;
+      if (document.visibilityState !== 'visible' || !id) return;
+      clientRef.current?.markRead(id).catch(() => {});
+      setUnread((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   // When activeId changes, fetch messages + join socket room
   useEffect(() => {
