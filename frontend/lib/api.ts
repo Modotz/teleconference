@@ -181,9 +181,30 @@ export const api = {
   getConversation: (id: string) =>
     request<{ conversation: any }>(`/conversations/${id}`),
   listMessages: (id: string, before?: string) =>
-    request<{ messages: any[] }>(
+    request<{ messages: any[]; pinnedMessageId?: string | null }>(
       `/conversations/${id}/messages${before ? `?before=${encodeURIComponent(before)}` : ''}`
     ),
+  // ---- message actions ----
+  editMessage: (id: string, content: string) =>
+    request<{ message: any }>(`/messages/${id}`, { method: 'PATCH', body: JSON.stringify({ content }) }),
+  deleteMessage: (id: string, scope: 'me' | 'everyone') =>
+    request<{ ok: boolean }>(`/messages/${id}?scope=${scope}`, { method: 'DELETE' }),
+  reactMessage: (id: string, emoji: string | null) =>
+    request<{ ok: boolean }>(`/messages/${id}/reaction`, { method: 'POST', body: JSON.stringify({ emoji }) }),
+  starMessage: (id: string, value: boolean) =>
+    request<{ ok: boolean }>(`/messages/${id}/star`, { method: 'POST', body: JSON.stringify({ value }) }),
+  starredMessages: () => request<{ messages: any[] }>('/messages/starred'),
+  forwardMessage: (id: string, conversationIds: string[]) =>
+    request<{ results: { conversationId: string; message?: any; error?: string }[] }>(`/messages/${id}/forward`, {
+      method: 'POST',
+      body: JSON.stringify({ conversationIds }),
+    }),
+  messageReceipts: (id: string) =>
+    request<{ receipts: { user: { id: string; username: string; fullName?: string | null }; status: 'sent' | 'delivered' | 'read'; deliveredAt: string | null; readAt: string | null }[] }>(`/messages/${id}/receipts`),
+  pinMessage: (conversationId: string, messageId: string | null) =>
+    request<{ ok: boolean }>(`/conversations/${conversationId}/pin`, { method: 'POST', body: JSON.stringify({ messageId }) }),
+  reportMessage: (messageId: string, reason: string) =>
+    request<{ report: any }>('/reports', { method: 'POST', body: JSON.stringify({ messageId, reason }) }),
   /** Search message text across your chats (server decrypts the newest messages). */
   searchMessages: (q: string) =>
     request<{ messages: any[]; truncated: boolean }>(

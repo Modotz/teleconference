@@ -20,7 +20,13 @@ import {
   Video,
   MoreHorizontal,
   X,
+  Reply,
+  Pencil,
+  Pin,
+  Forward,
 } from 'lucide-react';
+import MessageActions, { type MessageAction } from '@/components/MessageActions';
+import { ForwardDialog, DeleteDialog, ReceiptsDialog, ReportDialog } from '@/components/ChatMessageDialogs';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { api, uploadFile, type UploadedAttachment } from '@/lib/api';
 import { ChatClient, type ChatMessage, type CallInvite } from '@/lib/chatClient';
@@ -56,6 +62,8 @@ interface Conversation {
   /** HR-managed group */
   official?: boolean;
   unreadCount?: number;
+  /** 'owner' | 'admin' | 'member' */
+  myRole?: string;
   members: {
     id: string;
     user: { id: string; username: string; fullName?: string | null; title?: string | null };
@@ -79,6 +87,17 @@ export default function ChatPage() {
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [listFilter, setListFilter] = useState<ListFilter>('all');
   const [searchHits, setSearchHits] = useState<ChatMessage[]>([]);
+  // Message actions
+  const [pinnedByConv, setPinnedByConv] = useState<Record<string, string | null>>({});
+  const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const [dialog, setDialog] = useState<null | {
+    kind: 'forward' | 'deleteMe' | 'deleteAll' | 'info' | 'report';
+    message: ChatMessage;
+  }>(null);
+  const [toast, setToast] = useState('');
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   const [infoOpen, setInfoOpen] = useState(false);
   /** Map<conversationId, Map<userId, { username, expiresAt }>> */
@@ -231,6 +250,34 @@ export default function ChatPage() {
         setIncomingCall((curr) => (curr?.conversationId === conversationId ? null : curr));
         setActiveCall((curr) => (curr?.conversationId === conversationId ? null : curr));
       },
+      onMessageEdited: ({ conversationId, message }) =>
+        patchMessage(conversationId, message.id, () => message),
+      onMessageDeleted: ({ conversationId, messageId }) =>
+        patchMessage(conversationId, messageId, (m) => ({
+          ...m,
+          type: 'deleted',
+          content: '',
+          attachmentUrl: null,
+          attachmentName: null,
+          attachmentType: null,
+          attachmentSize: null,
+          reactions: [],
+        })),
+      onMessageHidden: ({ conversationId, messageId }) =>
+        setMessages((prev) => ({
+          ...prev,
+          [conversationId]: (prev[conversationId] || []).filter((m) => m.id !== messageId),
+        })),
+      onReaction: ({ conversationId, messageId, userId, emoji }) =>
+        patchMessage(conversationId, messageId, (m) => ({
+          ...m,
+          reactions: [
+            ...(m.reactions || []).filter((r) => r.userId !== userId),
+            ...(emoji ? [{ userId, emoji }] : []),
+          ],
+        })),
+      onPinned: ({ conversationId, messageId }) =>
+        setPinnedByConv((p) => ({ ...p, [conversationId]: messageId })),
       onCallDeclined: ({ byUsername }) => {
         setError(`${byUsername} declined the call`);
         setTimeout(() => setError(''), 3000);
@@ -251,6 +298,10 @@ export default function ChatPage() {
     try {
       const { conversations } = await api.listConversations();
       setConversations(conversations);
+      api
+        .starredMessages()
+        .then((r) => setStarredIds(new Set(r.messages.map((m: any) => m.id))))
+        .catch(() => {});
       // Start from the server's counts so badges survive a reload.
       setUnread(
         Object.fromEntries(
@@ -285,15 +336,18 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeId || !clientRef.current) return;
     const client = clientRef.current;
+    setReplyTo(null);
+    setEditing(null);
 
     let cancelled = false;
 
     (async () => {
       try {
         await client.joinConversation(activeId);
-        const { messages } = await api.listMessages(activeId);
+        const { messages, pinnedMessageId } = await api.listMessages(activeId);
         if (cancelled) return;
         setMessages((prev) => ({ ...prev, [activeId]: messages }));
+        setPinnedByConv((p) => ({ ...p, [activeId]: pinnedMessageId ?? null }));
         // Mark read via socket — also broadcasts to peers so they see receipt
         await client.markRead(activeId);
         setUnread((prev) => {
@@ -326,9 +380,16 @@ export default function ChatPage() {
     };
   }, [activeId]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll when a message is added or another chat opens — not when one
+  // is edited, deleted or reacted to.
+  const lastCountRef = useRef<{ id: string | null; n: number }>({ id: null, n: 0 });
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const n = activeId ? (messages[activeId] || []).length : 0;
+    const last = lastCountRef.current;
+    if (last.id !== activeId || n > last.n) {
+      messagesEndRef.current?.scrollIntoView({ behavior: last.id === activeId ? 'smooth' : 'auto' });
+    }
+    lastCountRef.current = { id: activeId, n };
   }, [messages, activeId]);
 
   // Auto-resize textarea to fit content (up to max-height set in CSS)
@@ -449,6 +510,18 @@ export default function ChatPage() {
     e.preventDefault();
     if (!activeId || !clientRef.current) return;
     const value = text.trim();
+    if (editing) {
+      if (!value) return;
+      try {
+        const { message } = await api.editMessage(editing.id, value);
+        patchMessage(editing.conversationId, editing.id, () => message);
+        setEditing(null);
+        setText('');
+      } catch (err: any) {
+        setError(err.message);
+      }
+      return;
+    }
     if (!value && !pendingFile) return;
     if (uploading) return;
 
@@ -469,7 +542,8 @@ export default function ChatPage() {
       // Stop typing indicator immediately on send
       clientRef.current.setTyping(activeId, false);
       stopTypingDebounce();
-      await clientRef.current.send(activeId, value, attachment);
+      await clientRef.current.send(activeId, value, attachment, { replyToId: replyTo?.id });
+      setReplyTo(null);
       setText('');
       setPendingFile(null);
       setEmojiOpen(false);
@@ -534,15 +608,37 @@ export default function ChatPage() {
     });
   }
 
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  function attachFile(file: File) {
     if (file.size > 25 * 1024 * 1024) {
-      setError('File too large (max 25 MB)');
+      setError('Berkas terlalu besar (maks. 25 MB)');
       return;
     }
     setPendingFile(file);
+  }
+
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) attachFile(file);
+  }
+
+  /**
+   * Paste a screenshot (Snipping Tool, Print Screen) or a copied file as an
+   * attachment. Plain text pastes normally.
+   */
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const item = Array.from(e.clipboardData.items).find((i) => i.kind === 'file');
+    const file = item?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    // Clipboard images all arrive as "image.png" — give them a useful name.
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+    const named =
+      file.type.startsWith('image/') && (!file.name || file.name === 'image.png')
+        ? new File([file], `screenshot-${stamp}.${file.type.split('/')[1] || 'png'}`, { type: file.type })
+        : file;
+    attachFile(named);
   }
 
   async function startCall() {
@@ -556,6 +652,96 @@ export default function ChatPage() {
           .filter((m) => m.user.id !== me?.id)
           .map((m) => ({ id: m.user.id, username: m.user.username })),
       });
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  /** Update one message in place (and the chat list preview if it's the last one). */
+  function patchMessage(conversationId: string, messageId: string, fn: (m: ChatMessage) => ChatMessage) {
+    setMessages((prev) => {
+      const list = prev[conversationId];
+      if (!list) return prev;
+      return { ...prev, [conversationId]: list.map((m) => (m.id === messageId ? fn(m) : m)) };
+    });
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId && c.lastMessage?.id === messageId ? { ...c, lastMessage: fn(c.lastMessage) } : c
+      )
+    );
+  }
+
+  function flash(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2200);
+  }
+
+  function jumpTo(messageId: string) {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return flash('Pesan asli belum dimuat');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlashId(messageId);
+    setTimeout(() => setFlashId(null), 1600);
+  }
+
+  const amAdmin = (c: Conversation) =>
+    c.myRole === 'owner' || c.myRole === 'admin' || (!c.myRole && c.ownerId === me?.id);
+
+  async function react(m: ChatMessage, emoji: string | null) {
+    // Optimistic; the server echo (chat:reaction) confirms it.
+    if (me) {
+      patchMessage(m.conversationId, m.id, (x) => ({
+        ...x,
+        reactions: [...(x.reactions || []).filter((r) => r.userId !== me.id), ...(emoji ? [{ userId: me.id, emoji }] : [])],
+      }));
+    }
+    try {
+      await api.reactMessage(m.id, emoji);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
+  async function onMessageAction(m: ChatMessage, action: MessageAction) {
+    try {
+      switch (action) {
+        case 'reply':
+          setEditing(null);
+          setReplyTo(m);
+          chatInputRef.current?.focus();
+          break;
+        case 'edit':
+          setReplyTo(null);
+          setPendingFile(null);
+          setEditing(m);
+          setText(m.content);
+          chatInputRef.current?.focus();
+          break;
+        case 'copy':
+          await copyText(m.content);
+          flash('Disalin');
+          break;
+        case 'star': {
+          const value = !starredIds.has(m.id);
+          await api.starMessage(m.id, value);
+          setStarredIds((prev) => {
+            const next = new Set(prev);
+            if (value) next.add(m.id);
+            else next.delete(m.id);
+            return next;
+          });
+          flash(value ? 'Diberi bintang' : 'Bintang dihapus');
+          break;
+        }
+        case 'pin': {
+          const pinned = pinnedByConv[m.conversationId] === m.id;
+          await api.pinMessage(m.conversationId, pinned ? null : m.id);
+          setPinnedByConv((p) => ({ ...p, [m.conversationId]: pinned ? null : m.id }));
+          break;
+        }
+        default:
+          setDialog({ kind: action, message: m });
+      }
     } catch (err: any) {
       setError(err.message);
     }
@@ -799,6 +985,33 @@ export default function ChatPage() {
               </div>
             )}
 
+            {(() => {
+              const pid = pinnedByConv[activeConv.id];
+              const pm = pid ? (messages[activeConv.id] || []).find((x) => x.id === pid) : null;
+              if (!pm || pm.type === 'deleted') return null;
+              return (
+                <div className="mx-4 sm:mx-6 mt-3 flex items-center gap-3 px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 shrink-0">
+                  <Pin className="w-4 h-4 text-indigo-600 dark:text-indigo-300 shrink-0" />
+                  <button onClick={() => jumpTo(pm.id)} className="flex-1 min-w-0 text-left">
+                    <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Pesan disematkan</div>
+                    <div className="text-[13px] text-gray-600 dark:text-slate-300 truncate">
+                      {pm.content || (pm.attachmentName ? `📎 ${pm.attachmentName}` : '')}
+                    </div>
+                  </button>
+                  {(!activeConv.isGroup || amAdmin(activeConv)) && (
+                    <button
+                      onClick={() => onMessageAction(pm, 'pin')}
+                      aria-label="Lepas sematan"
+                      title="Lepas sematan"
+                      className="text-gray-400 hover:text-gray-900 dark:hover:text-slate-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
               {buildRows(messages[activeConv.id] || [], me?.id).map((row) => {
                 if (row.kind === 'date') {
@@ -824,7 +1037,10 @@ export default function ChatPage() {
                 const url = firstUrl(m.content);
                 const bubble = (
                   <div
-                    className={`relative inline-block max-w-full rounded-2xl px-3.5 pt-2.5 pb-2 ${
+                    id={`msg-${m.id}`}
+                    className={`relative inline-block max-w-full rounded-2xl px-3.5 pt-2.5 pb-2 transition-shadow ${
+                      flashId === m.id ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#f6f7fb] dark:ring-offset-slate-950' : ''
+                    } ${
                       isMe
                         ? 'bg-[#e4e6f8] dark:bg-indigo-600/40 text-gray-900 dark:text-slate-100 shadow-sm'
                         : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700'
@@ -834,6 +1050,28 @@ export default function ChatPage() {
                       <div className="italic text-sm text-gray-500 dark:text-slate-400">Pesan ini telah dihapus</div>
                     ) : (
                       <>
+                        {m.forwarded && (
+                          <div className="flex items-center gap-1 text-[12px] italic text-gray-500 dark:text-slate-400 mb-1">
+                            <Forward className="w-3.5 h-3.5" />
+                            Diteruskan
+                          </div>
+                        )}
+                        {m.replyTo && (
+                          <button
+                            type="button"
+                            onClick={() => jumpTo(m.replyTo!.id)}
+                            className="block w-full text-left mb-2 rounded-lg border-l-4 border-indigo-500 bg-black/[0.04] dark:bg-white/5 px-3 py-1.5 hover:bg-black/[0.07]"
+                          >
+                            <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                              {m.replyTo.senderId === me?.id ? 'Anda' : m.replyTo.senderName}
+                            </div>
+                            <div className="text-[13px] text-gray-600 dark:text-slate-300 line-clamp-2">
+                              {m.replyTo.type === 'deleted'
+                                ? 'Pesan ini telah dihapus'
+                                : m.replyTo.content || (m.replyTo.attachmentName ? `📎 ${m.replyTo.attachmentName}` : '')}
+                            </div>
+                          </button>
+                        )}
                         {url && (
                           <a
                             href={url}
@@ -865,6 +1103,7 @@ export default function ChatPage() {
                       </>
                     )}
                     <div className="flex items-center justify-end gap-1 mt-1 text-[11px] text-gray-400 dark:text-slate-400">
+                      {m.editedAt && m.type !== 'deleted' && <span className="italic mr-0.5">Diedit</span>}
                       {formatClock(m.createdAt)}
                       {readInfo &&
                         (readInfo.allRead ? (
@@ -882,15 +1121,61 @@ export default function ChatPage() {
                   </div>
                 );
 
+                const myReaction = (m.reactions || []).find((r) => r.userId === me?.id)?.emoji ?? null;
+                const chips = aggregateReactions(m.reactions || [], me?.id);
+                const reactionRow = chips.length > 0 && (
+                  <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? 'justify-end' : ''}`}>
+                    {chips.map((c) => (
+                      <button
+                        key={c.emoji}
+                        onClick={() => react(m, c.mine ? null : c.emoji)}
+                        className={`h-7 px-2 rounded-full text-sm flex items-center gap-1 border ${
+                          c.mine
+                            ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-500/20 dark:border-indigo-500/40'
+                            : 'bg-white border-gray-200 dark:bg-slate-800 dark:border-slate-700'
+                        }`}
+                      >
+                        <span>{c.emoji}</span>
+                        {c.count > 1 && <span className="text-xs text-gray-600 dark:text-slate-300">{c.count}</span>}
+                      </button>
+                    ))}
+                  </div>
+                );
+                const actions =
+                  m.type === 'deleted' ? null : (
+                    <MessageActions
+                      align={isMe ? 'left' : 'right'}
+                      avail={{
+                        isMine: isMe,
+                        hasText: !!m.content,
+                        canEdit:
+                          isMe &&
+                          (m.type ?? 'text') === 'text' &&
+                          Date.now() - new Date(m.createdAt).getTime() < 15 * 60 * 1000,
+                        canPin: !activeConv.isGroup || amAdmin(activeConv),
+                        pinned: pinnedByConv[activeConv.id] === m.id,
+                        starred: starredIds.has(m.id),
+                        canDeleteAll: isMe || (activeConv.isGroup && amAdmin(activeConv)),
+                        myReaction,
+                      }}
+                      onReact={(e) => react(m, e)}
+                      onAction={(a) => onMessageAction(m, a)}
+                    />
+                  );
+
                 if (isMe) {
                   return (
-                    <div key={m.id} className={`flex justify-end ${row.groupStart ? 'mt-4' : 'mt-1.5'}`}>
-                      <div className="max-w-[80%] sm:max-w-[65%] flex justify-end">{bubble}</div>
+                    <div key={m.id} className={`group flex justify-end items-start gap-2 ${row.groupStart ? 'mt-4' : 'mt-1.5'}`}>
+                      {actions}
+                      <div className="max-w-[80%] sm:max-w-[65%] flex flex-col items-end">
+                        {bubble}
+                        {reactionRow}
+                      </div>
                     </div>
                   );
                 }
                 return (
-                  <div key={m.id} className={`flex gap-3 ${row.groupStart ? 'mt-4' : 'mt-1.5'}`}>
+                  <div key={m.id} className={`group flex gap-3 ${row.groupStart ? 'mt-4' : 'mt-1.5'}`}>
                     <div className="w-11 shrink-0">
                       {row.groupStart && (
                         <Avatar
@@ -904,12 +1189,45 @@ export default function ChatPage() {
                         <div className="font-semibold text-[15px] mb-1">{senderName(m)}</div>
                       )}
                       {bubble}
+                      {reactionRow}
                     </div>
+                    {actions && <div className={row.groupStart ? 'pt-7' : ''}>{actions}</div>}
                   </div>
                 );
               })}
               <div ref={messagesEndRef} />
             </div>
+
+            {(replyTo || editing) && (
+              <div className="mx-4 sm:mx-6 mb-2 flex items-center gap-3 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700">
+                {editing ? (
+                  <Pencil className="w-4 h-4 text-indigo-600 dark:text-indigo-300 shrink-0" />
+                ) : (
+                  <Reply className="w-4 h-4 text-indigo-600 dark:text-indigo-300 shrink-0" />
+                )}
+                <div className="flex-1 min-w-0 border-l-4 border-indigo-500 pl-3">
+                  <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                    {editing
+                      ? 'Mengedit pesan'
+                      : `Membalas ${replyTo!.senderId === me?.id || replyTo!.sender?.id === me?.id ? 'diri sendiri' : senderName(replyTo!)}`}
+                  </div>
+                  <div className="text-[13px] text-gray-500 dark:text-slate-400 truncate">
+                    {(editing || replyTo)!.content || (editing || replyTo)!.attachmentName}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (editing) setText('');
+                    setEditing(null);
+                    setReplyTo(null);
+                  }}
+                  aria-label="Batal"
+                  className="text-gray-400 hover:text-gray-900 dark:hover:text-slate-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             {pendingFile && (
               <div className="mx-4 sm:mx-6 mb-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center gap-2">
@@ -996,6 +1314,7 @@ export default function ChatPage() {
                     ref={chatInputRef}
                     value={text}
                     onChange={(e) => onTextChange(e.target.value)}
+                    onPaste={onPaste}
                     onKeyDown={(e) => {
                       // On touch devices (no Shift+Enter) let Enter insert a newline;
                       // sending is done via the send button instead.
@@ -1036,6 +1355,67 @@ export default function ChatPage() {
           </>
         )}
       </section>
+
+      {dialog?.kind === 'forward' && (
+        <ForwardDialog
+          conversations={conversations
+            .filter((c) => c.type !== 'system')
+            .map((c) => ({ id: c.id, title: conversationTitle(c) }))}
+          onClose={() => setDialog(null)}
+          onForward={async (ids) => {
+            try {
+              const { results } = await api.forwardMessage(dialog.message.id, ids);
+              const failed = results.filter((r) => r.error).length;
+              setDialog(null);
+              flash(failed ? `${failed} chat gagal diteruskan` : `Diteruskan ke ${ids.length} chat`);
+            } catch (err: any) {
+              setError(err.message);
+            }
+          }}
+        />
+      )}
+      {(dialog?.kind === 'deleteMe' || dialog?.kind === 'deleteAll') && (
+        <DeleteDialog
+          forEveryone={dialog.kind === 'deleteAll'}
+          onClose={() => setDialog(null)}
+          onConfirm={async () => {
+            const m = dialog.message;
+            try {
+              await api.deleteMessage(m.id, dialog.kind === 'deleteAll' ? 'everyone' : 'me');
+              if (dialog.kind === 'deleteMe') {
+                setMessages((prev) => ({
+                  ...prev,
+                  [m.conversationId]: (prev[m.conversationId] || []).filter((x) => x.id !== m.id),
+                }));
+              }
+              if (replyTo?.id === m.id) setReplyTo(null);
+              setDialog(null);
+            } catch (err: any) {
+              setError(err.message);
+            }
+          }}
+        />
+      )}
+      {dialog?.kind === 'info' && <ReceiptsDialog messageId={dialog.message.id} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'report' && (
+        <ReportDialog
+          onClose={() => setDialog(null)}
+          onSubmit={async (reason) => {
+            try {
+              await api.reportMessage(dialog.message.id, reason);
+              setDialog(null);
+              flash('Laporan terkirim ke admin/HR');
+            } catch (err: any) {
+              setError(err.message);
+            }
+          }}
+        />
+      )}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-gray-900 text-white text-sm shadow-lg">
+          {toast}
+        </div>
+      )}
 
       <NewChatModal
         open={newChatOpen}
@@ -1104,6 +1484,41 @@ export default function ChatPage() {
 }
 
 // ---------------------------------------------------------------- pieces
+
+/**
+ * Clipboard write that also works where the async Clipboard API is refused
+ * (plain-HTTP pages, unfocused documents): falls back to execCommand.
+ */
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    /* fall through */
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand('copy');
+  ta.remove();
+  if (!ok) throw new Error('Tidak bisa menyalin ke clipboard');
+}
+
+/** [{ emoji, count, mine }] in first-used order. */
+function aggregateReactions(list: { userId: string; emoji: string }[], myId: string | undefined) {
+  const out: { emoji: string; count: number; mine: boolean }[] = [];
+  for (const r of list) {
+    let e = out.find((x) => x.emoji === r.emoji);
+    if (!e) out.push((e = { emoji: r.emoji, count: 0, mine: false }));
+    e.count++;
+    if (r.userId === myId) e.mine = true;
+  }
+  return out;
+}
 
 /** Full name from HR data when known, else the username. */
 function senderName(m: ChatMessage): string {

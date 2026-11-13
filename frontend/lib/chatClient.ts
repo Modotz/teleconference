@@ -16,6 +16,21 @@ export interface ChatMessage {
   sender?: { id: string; username: string; fullName?: string | null };
   /** 'text' | 'system' | 'deleted' | app-defined */
   type?: string;
+  clientId?: string | null;
+  /** Quote of the message this one replies to. */
+  replyTo?: {
+    id: string;
+    senderId: string;
+    senderName: string | null;
+    type: string;
+    content: string;
+    attachmentName: string | null;
+  } | null;
+  forwarded?: boolean;
+  /** One per person. */
+  reactions?: { userId: string; emoji: string }[];
+  editedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface CallInvite {
@@ -59,6 +74,13 @@ export interface ChatCallbacks {
   onCallDeclined?: (info: { conversationId: string; byUserId: string; byUsername: string }) => void;
   onCallCancelled?: (info: { conversationId: string }) => void;
   onCallEnded?: (info: { conversationId: string }) => void;
+  onMessageEdited?: (info: { conversationId: string; message: ChatMessage }) => void;
+  /** Deleted for everyone. */
+  onMessageDeleted?: (info: { conversationId: string; messageId: string }) => void;
+  /** I deleted it 'for me' (on any of my devices). */
+  onMessageHidden?: (info: { conversationId: string; messageId: string }) => void;
+  onReaction?: (info: { conversationId: string; messageId: string; userId: string; emoji: string | null }) => void;
+  onPinned?: (info: { conversationId: string; messageId: string | null }) => void;
 }
 
 /**
@@ -90,6 +112,11 @@ export class ChatClient {
     this.socket.on('call:declined', (info) => this.callbacks.onCallDeclined?.(info));
     this.socket.on('call:cancelled', (info) => this.callbacks.onCallCancelled?.(info));
     this.socket.on('call:ended', (info) => this.callbacks.onCallEnded?.(info));
+    this.socket.on('chat:messageEdited', (info) => this.callbacks.onMessageEdited?.(info));
+    this.socket.on('chat:messageDeleted', (info) => this.callbacks.onMessageDeleted?.(info));
+    this.socket.on('chat:messageHidden', (info) => this.callbacks.onMessageHidden?.(info));
+    this.socket.on('chat:reaction', (info) => this.callbacks.onReaction?.(info));
+    this.socket.on('chat:pinned', (info) => this.callbacks.onPinned?.(info));
   }
 
   private emit<T = any>(event: string, data?: any): Promise<T> {
@@ -117,11 +144,12 @@ export class ChatClient {
     return this.emit('chat:leave', { conversationId });
   }
 
-  send(conversationId: string, content: string, attachment?: any) {
+  send(conversationId: string, content: string, attachment?: any, opts: { replyToId?: string } = {}) {
     return this.emit<{ message: ChatMessage }>('chat:send', {
       conversationId,
       content,
       attachment,
+      replyToId: opts.replyToId,
     });
   }
 
