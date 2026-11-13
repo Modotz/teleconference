@@ -584,6 +584,12 @@ export default function MeetingRoom({
   async function switchCamera(deviceId: string) {
     const stream = localStreamRef.current;
     if (!stream) return;
+    // Camera is off (released): just remember the choice for when it's turned on.
+    if (!camOnRef.current) {
+      setCamId(deviceId);
+      localStorage.setItem('dev:cam', deviceId);
+      return;
+    }
     try {
       const tmp = await navigator.mediaDevices.getUserMedia({
         video: { deviceId: { exact: deviceId }, width: 640, height: 360 },
@@ -615,7 +621,7 @@ export default function MeetingRoom({
   // Flip between front (user) and back (environment) camera — mobile.
   async function flipCamera() {
     const stream = localStreamRef.current;
-    if (!stream || flipping) return;
+    if (!stream || flipping || !camOnRef.current) return;
     const next = facingRef.current === 'environment' ? 'user' : 'environment';
     setFlipping(true);
     try {
@@ -1243,11 +1249,54 @@ export default function MeetingRoom({
     applyMic(!micOn);
   }
 
-  function applyCam(enabled: boolean) {
+  /**
+   * Camera off releases the device, so the camera light goes out — a merely
+   * disabled track keeps it open. Camera on opens it again and swaps the new
+   * track into the same stream (the preview and the virtual-background
+   * processor both read from it, as in switchCamera).
+   */
+  async function applyCam(enabled: boolean) {
     setCamOn(enabled);
     camOnRef.current = enabled;
-    clientRef.current?.toggleProducer('camera', enabled);
-    localStreamRef.current?.getVideoTracks().forEach((t) => (t.enabled = enabled));
+    const stream = localStreamRef.current;
+
+    if (!enabled) {
+      clientRef.current?.toggleProducer('camera', false);
+      stream?.getVideoTracks().forEach((t) => {
+        t.stop();
+        stream.removeTrack(t);
+      });
+      return;
+    }
+
+    if (stream && !stream.getVideoTracks().some((t) => t.readyState === 'live')) {
+      try {
+        const tmp = await navigator.mediaDevices.getUserMedia({
+          video: camId
+            ? { deviceId: { ideal: camId }, width: 640, height: 360 }
+            : { width: 640, height: 360 },
+        });
+        // Turned off again while the camera was opening.
+        if (!camOnRef.current) {
+          tmp.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        const track = tmp.getVideoTracks()[0];
+        stream.getVideoTracks().forEach((t) => stream.removeTrack(t));
+        stream.addTrack(track);
+        // With a virtual background the producer keeps sending the processed
+        // canvas track, which picks up the new camera from the stream.
+        const outbound =
+          vbg.mode.kind === 'none' ? track : outboundStream?.getVideoTracks()[0];
+        if (outbound) await clientRef.current?.setCameraTrack(outbound);
+      } catch (err: any) {
+        setCamOn(false);
+        camOnRef.current = false;
+        setError(err?.message || 'Could not turn the camera on');
+        return;
+      }
+    }
+    clientRef.current?.toggleProducer('camera', true);
   }
 
   function toggleCam() {

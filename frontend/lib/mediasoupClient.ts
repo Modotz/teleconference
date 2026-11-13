@@ -489,6 +489,27 @@ export class RoomClient {
     await producer.replaceTrack({ track });
   }
 
+  /**
+   * Point the camera producer at `track`, creating the producer if there is
+   * none yet — the case when the user joined with the camera off.
+   */
+  async setCameraTrack(track: MediaStreamTrack) {
+    const producer = this.producers.get('camera');
+    if (producer) {
+      await producer.replaceTrack({ track });
+      return;
+    }
+    if (!this.sendTransport) return;
+    const created = await this.sendTransport.produce({
+      track,
+      stopTracks: false,
+      encodings: CAMERA_ENCODINGS,
+      codecOptions: { videoGoogleStartBitrate: 1000 },
+      appData: { source: 'camera' },
+    });
+    this.producers.set('camera', created);
+  }
+
   /** Replace the microphone producer's track (e.g. switching input device). */
   async replaceMicTrack(track: MediaStreamTrack) {
     const producer = this.producers.get('mic');
